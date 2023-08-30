@@ -34,7 +34,7 @@
       }
 
       .sidebar {
-        flex: 0 1 200px;
+        flex: 0 0 200px;
         overflow: auto;
         position: relative;
       }
@@ -66,12 +66,13 @@
         background-color: #f1f1f1;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
       }
 
       .level {
         position: fixed;
         right: 1.5rem;
-        bottom: 0.5rem;
+        bottom: 1.5rem;
         width: 32px;
       }
 
@@ -165,6 +166,13 @@
           <button type="button" class="toggle-grid-button" title="Toggle grid">
             <span class="material-symbols-outlined"> grid_on </span>
           </button>
+          <button
+            type="button"
+            class="render-only-current-level-button"
+            title="Render only current level"
+          >
+            <span class="material-symbols-outlined"> grid_on </span>
+          </button>
         </div>
         <div class="tile-map-container">
           <canvas class="tile-map" width="1024" height="1024"></canvas>
@@ -229,6 +237,7 @@
     let level = 0
     const isGridShownSerialized = localStorage.getItem('isGridShown')
     let activeTool = 'pen'
+    let renderOnlyCurrentLevel = false
 
     let isGridShown = isGridShownSerialized
       ? JSON.parse(isGridShownSerialized)
@@ -426,7 +435,7 @@
       doAFillMethod(event, function (tile, selectedTile) {
         const replacements = []
         replacements[level] = selectedTile
-        renderTile2(
+        renderTile(
           {
             x: tile.column * tileMap.tileSize.width,
             y: tile.row * tileMap.tileSize.height,
@@ -437,7 +446,7 @@
     }
 
     function fill(event) {
-      backupMap()
+      backUpMap()
       doAFillMethod(event, function (tile, selectedTile) {
         setTile(tile, selectedTile)
       })
@@ -447,7 +456,8 @@
 
     const backups = []
 
-    function backupMap() {
+    function backUpMap() {
+      console.log('backUp')
       backups.push(copyMap(tileMap))
     }
 
@@ -624,13 +634,31 @@
             renderGrid()
           }
         } else {
-          if (activeTool === 'pen' || activeTool === 'area') {
+          if (activeTool === 'pen') {
             const previousPreviewTiles = previewTiles
             previewTiles = {
               x: adjustToStep(event.offsetX, tileMap.tileSize.width),
               y: adjustToStep(event.offsetY, tileMap.tileSize.height),
               width: selectedTiles.width,
               height: selectedTiles.height,
+            }
+            if (
+              !previousPreviewTiles ||
+              areDifferent(previousPreviewTiles, previewTiles)
+            ) {
+              if (previousPreviewTiles) {
+                renderTiles(previousPreviewTiles)
+              }
+              renderPreviewTiles()
+              renderGrid()
+            }
+          } else if (activeTool === 'area') {
+            const previousPreviewTiles = previewTiles
+            previewTiles = {
+              x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+              y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+              width: tileMap.tileSize.width,
+              height: tileMap.tileSize.height,
             }
             if (
               !previousPreviewTiles ||
@@ -701,7 +729,7 @@
     }
 
     function area() {
-      backupMap()
+      backUpMap()
 
       const numberOfRows = selectedTiles.height / tileMap.tileSize.height
       const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
@@ -724,6 +752,8 @@
     }
 
     function setTilesWith9SliceMethod() {
+      backUpMap()
+
       const baseRow =
         adjustToStep(selectedTilesInTileMap.y, tileMap.tileSize.height) /
         tileMap.tileSize.height
@@ -871,6 +901,14 @@
 
     updateToolButtonStates()
 
+    const renderOnlyCurrentLevelButton = document.querySelector(
+      '.render-only-current-level-button'
+    )
+    renderOnlyCurrentLevelButton.addEventListener('click', function () {
+      renderOnlyCurrentLevel = !renderOnlyCurrentLevel
+      renderTileMap()
+    })
+
     const saveTileMap = debounce(function () {
       localStorage.setItem('tileMap', JSON.stringify(tileMap))
     })
@@ -917,7 +955,7 @@
       })
 
     function resizeMap({ width, height }) {
-      backupMap()
+      backUpMap()
 
       const oldNumberOfRows = Math.ceil(
         tileMap.size.height / tileMap.tileSize.height
@@ -951,7 +989,7 @@
     }
 
     function setTiles(event) {
-      backupMap()
+      backUpMap()
 
       const baseX = adjustToStep(event.offsetX, tileMap.tileSize.width)
       const baseY = adjustToStep(event.offsetY, tileMap.tileSize.height)
@@ -977,6 +1015,8 @@
       if (somethingHasChanged) {
         renderGrid()
         saveTileMap()
+      } else {
+        backups.pop()
       }
     }
 
@@ -1014,7 +1054,7 @@
           x < area.x + area.width;
           x += tileMap.tileSize.width
         ) {
-          renderTile2({
+          renderTile({
             x,
             y,
           })
@@ -1022,40 +1062,7 @@
       }
     }
 
-    function renderTile(position, maximumLevel = null) {
-      const tile = retrieveTile(position)
-      context.clearRect(
-        position.x,
-        position.y,
-        tileMap.tileSize.width,
-        tileMap.tileSize.height
-      )
-      if (tile) {
-        if (!maximumLevel) {
-          maximumLevel = Math.min(tile.length - 1, level)
-        }
-        for (let level2 = 0; level2 <= maximumLevel; level2++) {
-          const tileOnLayer = tile[level2]
-          if (tileOnLayer) {
-            context.drawImage(
-              $tileSet,
-              tileOnLayer.x,
-              tileOnLayer.y,
-              tileMap.tileSize.width,
-              tileMap.tileSize.height,
-              position.x,
-              position.y,
-              tileMap.tileSize.width,
-              tileMap.tileSize.height
-            )
-          }
-        }
-      } else {
-        renderEmptyTile(position)
-      }
-    }
-
-    function renderTile2(position, replacements = null) {
+    function renderTile(position, replacements = null) {
       const tile = retrieveTile(position)
       context.clearRect(
         position.x,
@@ -1065,7 +1072,7 @@
       )
       if (tile) {
         context.save()
-        for (let level2 = 0; level2 < tile.length; level2++) {
+        function a(level2) {
           const tileOnLayer =
             replacements && replacements[level2]
               ? replacements[level2]
@@ -1085,24 +1092,31 @@
             )
           }
         }
+        if (renderOnlyCurrentLevel) {
+          a(level)
+        } else {
+          for (let level2 = 0; level2 < tile.length; level2++) {
+            a(level2)
+          }
+        }
         context.restore()
       } else {
         renderEmptyTile(position)
       }
     }
 
-    function renderSelectedTiles(position, selectedTiles) {
-      for (let y = 0; y < selectedTiles.height; y += tileMap.tileSize.height) {
-        for (let x = 0; x < selectedTiles.width; x += tileMap.tileSize.width) {
+    function renderSelectedTiles(area, selectedTiles) {
+      for (let y = 0; y < area.height; y += tileMap.tileSize.height) {
+        for (let x = 0; x < area.width; x += tileMap.tileSize.width) {
           const replacements = []
           replacements[level] = {
             x: selectedTiles.x + x,
             y: selectedTiles.y + y,
           }
-          renderTile2(
+          renderTile(
             {
-              x: position.x + x,
-              y: position.y + y,
+              x: area.x + x,
+              y: area.y + y,
             },
             replacements
           )
@@ -1138,7 +1152,7 @@
     function renderTileMap() {
       for (let y = 0; y < tileMap.size.height; y += tileMap.tileSize.height) {
         for (let x = 0; x < tileMap.size.width; x += tileMap.tileSize.width) {
-          renderTile2({ x, y })
+          renderTile({ x, y })
         }
       }
 
@@ -1234,6 +1248,7 @@
     })
 
     function undo() {
+      console.log('undo')
       const lastBackup = backups.pop()
       if (lastBackup) {
         const oldTileMap = tileMap
