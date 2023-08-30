@@ -186,8 +186,8 @@
         y,
       }
       selectedTiles = {
-        x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-        y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+        x,
+        y,
         width: tileMap.tileSize.width,
         height: tileMap.tileSize.height,
       }
@@ -266,12 +266,71 @@
       )
     }
 
+    let firstPointTileMap = null
+    let selectedTilesInTileMap = null
     let isPointerDownInTileMap = false
+
+    $canvas.addEventListener('pointerdown', function (event) {
+      event.preventDefault()
+      isPointerDownInTileMap = true
+
+      selectTileInTileMap(event)
+
+      if (selectedTiles) {
+        if (!seemsThat9SliceIsSelected()) {
+          setTiles(event)
+        }
+      }
+    })
+
+    function selectTileInTileMap(event) {
+      const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
+      const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+      firstPointTileMap = {
+        x,
+        y,
+      }
+
+      selectedTilesInTileMap = {
+        x,
+        y,
+        width: tileMap.tileSize.width,
+        height: tileMap.tileSize.height,
+      }
+    }
+
+    function preview9SliceMade() {
+      renderTileMap()
+
+      do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
+        context.drawImage(
+          $tileSet,
+          tile.x,
+          tile.y,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height,
+          selectedTilesInTileMap.x + column * tileMap.tileSize.width,
+          selectedTilesInTileMap.y + row * tileMap.tileSize.height,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height
+        )
+      })
+    }
 
     $canvas.addEventListener('pointermove', function (event) {
       if (selectedTiles) {
         if (isPointerDownInTileMap) {
-          setTiles(event)
+          if (seemsThat9SliceIsSelected()) {
+            expandSelectTilesInTileMap(event)
+            if (
+              selectedTilesInTileMap.width > tileMap.tileSize.width ||
+              selectedTilesInTileMap.height > tileMap.tileSize.height
+            ) {
+              preview9SliceMade()
+            }
+          } else {
+            setTiles(event)
+          }
         } else {
           const previousPreviewTiles = previewTiles
           previewTiles = {
@@ -286,6 +345,7 @@
           ) {
             if (previousPreviewTiles) {
               renderTiles(previousPreviewTiles)
+              renderGrid()
             }
             renderPreviewTiles()
           }
@@ -293,24 +353,143 @@
       }
     })
 
-    $canvas.addEventListener('pointerdown', function (event) {
-      isPointerDownInTileMap = true
-
-      if (selectedTiles) {
-        setTiles(event)
+    function expandSelectTilesInTileMap(event) {
+      const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
+      const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+      selectedTilesInTileMap = {
+        x: Math.min(firstPointTileMap.x, x),
+        y: Math.min(firstPointTileMap.y, y),
+        width: Math.abs(x - firstPointTileMap.x) + tileMap.tileSize.width,
+        height: Math.abs(y - firstPointTileMap.y) + tileMap.tileSize.height,
       }
-    })
+    }
+
+    function seemsThat9SliceIsSelected() {
+      return (
+        selectedTiles.width === 3 * tileMap.tileSize.height &&
+        selectedTiles.height === 3 * tileMap.tileSize.height
+      )
+    }
 
     $canvas.addEventListener('mouseleave', function () {
       if (previewTiles) {
         renderTiles(previewTiles)
+        renderGrid()
         previewTiles = null
       }
     })
 
     window.addEventListener('pointerup', function () {
+      const wasPointerDownInTileMap = isPointerDownInTileMap
+
       isPointerDownInTileMap = false
+
+      if (wasPointerDownInTileMap) {
+        if (seemsThat9SliceIsSelected()) {
+          if (
+            selectedTilesInTileMap.width === tileMap.tileSize.width &&
+            selectedTilesInTileMap.height === tileMap.tileSize.height
+          ) {
+            putSelectedTilesOnMap()
+          } else {
+            setTilesWith9SliceMethod()
+          }
+        }
+      }
+
+      firstPointTileMap = null
+      selectedTilesInTileMap = null
     })
+
+    function putSelectedTilesOnMap() {
+      setTiles({
+        offsetX: firstPointTileMap.x,
+        offsetY: firstPointTileMap.y,
+      })
+    }
+
+    function setTilesWith9SliceMethod() {
+      const baseRow =
+        adjustToStep(selectedTilesInTileMap.y, tileMap.tileSize.height) /
+        tileMap.tileSize.height
+      const baseColumn =
+        adjustToStep(selectedTilesInTileMap.x, tileMap.tileSize.width) /
+        tileMap.tileSize.width
+
+      do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
+        setTile(
+          {
+            row: 1 + baseRow + row,
+            column: 1 + baseColumn + column,
+          },
+          tile
+        )
+      })
+    }
+
+    function doSomethingWithSelectedTilesInTileMap(fn) {
+      const numberOfRows = calculateNumberOfRows(selectedTilesInTileMap.height)
+      const numberOfColumns = calculateNumberOfColumns(
+        selectedTilesInTileMap.width
+      )
+
+      for (let row = 0; row < numberOfRows; row++) {
+        for (let column = 0; column < numberOfColumns; column++) {
+          fn({ row, column })
+        }
+      }
+    }
+
+    function do9SliceMethodWithSelectedTiles(fn) {
+      const numberOfRows = calculateNumberOfRows(selectedTilesInTileMap.height)
+      const numberOfColumns = calculateNumberOfColumns(
+        selectedTilesInTileMap.width
+      )
+
+      doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
+        let selectedTilesX
+        let selectedTilesY
+
+        if (row === 0 && column === 0) {
+          selectedTilesX = selectedTiles.x
+          selectedTilesY = selectedTiles.y
+        } else if (row === 0 && column === numberOfColumns - 1) {
+          ;(selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width),
+            (selectedTilesY = selectedTiles.y)
+        } else if (row === numberOfRows - 1 && column === numberOfColumns - 1) {
+          selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width
+          selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+        } else if (row === numberOfRows - 1 && column === 0) {
+          selectedTilesX = selectedTiles.x
+          selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+        } else if (row === 0) {
+          selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
+          selectedTilesY = selectedTiles.y
+        } else if (row === numberOfRows - 1) {
+          selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
+          selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+        } else if (column === 0) {
+          selectedTilesX = selectedTiles.x
+          selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+        } else if (column === numberOfColumns - 1) {
+          selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width
+          selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+        } else {
+          selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
+          selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+        }
+
+        fn({ row, column }, { x: selectedTilesX, y: selectedTilesY })
+      })
+    }
+
+    function calculateNumberOfRows(height) {
+      return height / tileMap.tileSize.height
+    }
+
+    function calculateNumberOfColumns(width) {
+      return width / tileMap.tileSize.width
+    }
 
     const menuIconBar = document.querySelector('.menu-icon-bar')
     const toggleGridButton = menuIconBar.querySelector('.toggle-grid-button')
@@ -345,28 +524,38 @@
         for (let x = 0; x < selectedTiles.width; x += tileMap.tileSize.width) {
           const row = (baseY + y) / tileMap.tileSize.height + 1
           const column = (baseX + x) / tileMap.tileSize.width + 1
-          const index = (row - 1) * tileMap.size.width + (column - 1)
-          const previousTile =
-            tileMap.tiles[level] && tileMap.tiles[level][index]
-          const selectedTile = {
+
+          const tile = {
             x: selectedTiles.x + x,
             y: selectedTiles.y + y,
           }
-          if (!previousTile || areDifferent(previousTile, selectedTile)) {
-            if (!tileMap.tiles[level]) {
-              tileMap.tiles[level] = new Array(
-                tileMap.size.width * tileMap.size.height
-              )
-            }
-            tileMap.tiles[level][index] = selectedTile
-            const position = { x: baseX + x, y: baseY + y }
-            renderTile(position)
-            somethingHasChanged = true
-          }
+
+          const hasTileBeenSet = setTile({ row, column }, tile)
+          somethingHasChanged = somethingHasChanged || hasTileBeenSet
+
+          const position = { x: baseX + x, y: baseY + y }
+          renderTile(position)
         }
       }
       if (somethingHasChanged) {
+        renderGrid()
         saveTileMap()
+      }
+    }
+
+    function setTile({ row, column }, tile) {
+      const index = (row - 1) * tileMap.size.width + (column - 1)
+      const previousTile = tileMap.tiles[level] && tileMap.tiles[level][index]
+      if (!previousTile || areDifferent(previousTile, tile)) {
+        if (!tileMap.tiles[level]) {
+          tileMap.tiles[level] = new Array(
+            tileMap.size.width * tileMap.size.height
+          )
+        }
+        tileMap.tiles[level][index] = tile
+        return true
+      } else {
+        return false
       }
     }
 
@@ -488,28 +677,28 @@
         }
       }
 
-      if (isGridShown) {
-        renderGrid()
-      }
+      renderGrid()
     }
 
     function renderGrid() {
-      context.fillStyle = 'black'
+      if (isGridShown) {
+        context.fillStyle = 'black'
 
-      for (
-        let y = tileMap.tileSize.height;
-        y < tileMap.size.height;
-        y += tileMap.tileSize.height
-      ) {
-        context.fillRect(0, y - 1, tileMap.size.width, 2)
-      }
+        for (
+          let y = tileMap.tileSize.height;
+          y < tileMap.size.height;
+          y += tileMap.tileSize.height
+        ) {
+          context.fillRect(0, y - 1, tileMap.size.width, 2)
+        }
 
-      for (
-        let x = tileMap.tileSize.width;
-        x < tileMap.size.width;
-        x += tileMap.tileSize.width
-      ) {
-        context.fillRect(x, 0, 2, tileMap.size.height)
+        for (
+          let x = tileMap.tileSize.width;
+          x < tileMap.size.width;
+          x += tileMap.tileSize.width
+        ) {
+          context.fillRect(x, 0, 2, tileMap.size.height)
+        }
       }
     }
 
