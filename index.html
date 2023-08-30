@@ -107,7 +107,7 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="collapse navbar-collapse">
           <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             <li class="nav-item dropdown">
               <a
@@ -137,6 +137,24 @@
                 <li>
                   <a id="exportToFile" class="dropdown-item" href="#"
                     >Export to file</a
+                  >
+                </li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Edit
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a id="undo" class="dropdown-item" href="#"
+                    >Undo (Ctrl + Z)</a
                   >
                 </li>
               </ul>
@@ -1277,5 +1295,10 @@
         event.preventDefault()
         loadMap()
       })
+
+    const $undo = document.querySelector('#undo')
+    $undo.addEventListener('click', function () {
+      undo()
+    })
   </script>
 </html>
