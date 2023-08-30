@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tilemap Editor</title>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        height: 100vh;
+      }
+
+      .menu {
+        flex: 0 0 16px;
+        background-color: gainsboro;
+        margin: 0;
+        padding: 0;
+      }
+
+      .menu ol {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .menu ol button {
+        border: none;
+      }
+
+      .container {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        flex: 0 1 200px;
+        overflow: auto;
+        position: relative;
+      }
+
+      .tile-hover {
+        border: 1px solid gainsboro;
+        box-sizing: border-box;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .tile-selected {
+        border: 1px solid black;
+        box-sizing: border-box;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .slider {
+        flex: 0 0 auto;
+        border-right: 1px solid black;
+        width: 0;
+        cursor: col-resize;
+      }
+
+      .main {
+        flex: 1 1 auto;
+        overflow: auto;
+        position: relative;
+      }
+
+      .level {
+        position: fixed;
+        right: 0.5rem;
+        bottom: 0.5rem;
+        width: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <menu class="menu">
+      <ol>
+        <li><button>File</button></li>
+      </ol>
+    </menu>
+    <div class="container">
+      <div class="sidebar">
+        <img class="tile-set" src="tileset.png" alt="Tileset" />
+        <div class="tile-hover" style="display: none"></div>
+        <div class="tile-selected" style="display: none"></div>
+      </div>
+      <div class="slider"></div>
+      <div class="main">
+        <canvas width="1024" height="1024"></canvas>
+        <input class="level" type="number" value="0" title="Level" />
+      </div>
+    </div>
+  </body>
+  <script>
+    let level = 0
+    const $level = document.querySelector('.level')
+
+    $level.addEventListener('change', function (event) {
+      level = Number(event.target.value)
+      renderTileMap()
+    })
+
+    const $sidebar = document.querySelector('.sidebar')
+
+    const $slider = document.querySelector('.slider')
+    let isSliding = false
+    $slider.addEventListener('pointerdown', function (event) {
+      event.preventDefault()
+      isSliding = true
+    })
+    window.addEventListener('pointermove', function (event) {
+      if (isSliding) {
+        event.preventDefault()
+        $sidebar.style.flexBasis = event.clientX + 'px'
+      }
+    })
+    window.addEventListener('pointerup', function () {
+      isSliding = false
+    })
+
+    const $tileHover = document.querySelector('.tile-hover')
+    const $tileSet = document.querySelector('.tile-set')
+    $tileSet.addEventListener('pointermove', function (event) {
+      $tileHover.style.display = 'block'
+      $tileHover.style.left =
+        adjustToStep(event.offsetX, tileMap.tileSize.width) + 'px'
+      $tileHover.style.top =
+        adjustToStep(event.offsetY, tileMap.tileSize.height) + 'px'
+    })
+
+    const $tileSelected = document.querySelector('.tile-selected')
+
+    let isPointerDownInTileSet = false
+
+    $tileSet.addEventListener('pointerdown', function (event) {
+      event.preventDefault()
+      isPointerDownInTileSet = true
+      selectTile(event)
+    })
+
+    $tileSet.addEventListener('pointermove', function (event) {
+      if (isPointerDownInTileSet) {
+        expandSelectTiles(event)
+      }
+    })
+
+    $tileSet.addEventListener('mouseleave', function () {
+      $tileHover.style.display = 'none'
+    })
+
+    let firstPoint = null
+    let selectedTiles = null
+
+    function selectTile(event) {
+      const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
+      const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+      firstPoint = {
+        x,
+        y,
+      }
+      selectedTiles = {
+        x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+        y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+        width: tileMap.tileSize.width,
+        height: tileMap.tileSize.height,
+      }
+      $tileSelected.style.display = 'block'
+      $tileSelected.style.left = selectedTiles.x + 'px'
+      $tileSelected.style.top = selectedTiles.y + 'px'
+      $tileSelected.style.width = selectedTiles.width + 'px'
+      $tileSelected.style.height = selectedTiles.height + 'px'
+    }
+
+    function expandSelectTiles(event) {
+      const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
+      const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+      selectedTiles = {
+        x: Math.min(firstPoint.x, x),
+        y: Math.min(firstPoint.y, y),
+        width: Math.abs(x - firstPoint.x) + tileMap.tileSize.width,
+        height: Math.abs(y - firstPoint.y) + tileMap.tileSize.height,
+      }
+      $tileSelected.style.left = selectedTiles.x + 'px'
+      $tileSelected.style.top = selectedTiles.y + 'px'
+      $tileSelected.style.width = selectedTiles.width + 'px'
+      $tileSelected.style.height = selectedTiles.height + 'px'
+    }
+
+    window.addEventListener('pointerup', function () {
+      isPointerDownInTileSet = false
+    })
+
+    function adjustToStep(value, step) {
+      return Math.floor(value / step) * step
+    }
+
+    const $canvas = document.querySelector('canvas')
+    const context = $canvas.getContext('2d')
+
+    let previewTiles = null
+
+    const DEFAULT_MAP_WIDTH = 512
+    const DEFAULT_MAP_HEIGHT = 512
+    const tileMapSerialized = localStorage.getItem('tileMap')
+    let tileMap = tileMapSerialized
+      ? JSON.parse(tileMapSerialized)
+      : {
+          size: {
+            width: DEFAULT_MAP_WIDTH,
+            height: DEFAULT_MAP_HEIGHT,
+          },
+          tileSize: {
+            width: 12,
+            height: 12,
+          },
+          tiles: [new Array(DEFAULT_MAP_WIDTH * DEFAULT_MAP_HEIGHT)],
+        }
+    level = tileMap.tiles.length - 1
+    $level.value = level
+
+    $tileHover.style.width = tileMap.tileSize.width + 'px'
+    $tileHover.style.height = tileMap.tileSize.height + 'px'
+
+    $tileSelected.style.width = tileMap.tileSize.width + 'px'
+    $tileSelected.style.height = tileMap.tileSize.height + 'px'
+
+    if (tileMapSerialized) {
+      $tileSet.addEventListener('load', function () {
+        renderTileMap()
+      })
+    }
+
+    function retrieveTile(position) {
+      const row = position.y / tileMap.tileSize.height + 1
+      const column = position.x / tileMap.tileSize.width + 1
+      const index = (row - 1) * tileMap.size.width + (column - 1)
+      return tileMap.tiles.map(levelTileMap =>
+        levelTileMap ? levelTileMap[index] : null
+      )
+    }
+
+    let isPointerDownInTileMap = false
+
+    $canvas.addEventListener('pointermove', function (event) {
+      if (selectedTiles) {
+        if (isPointerDownInTileMap) {
+          setTiles(event)
+        } else {
+          const previousPreviewTiles = previewTiles
+          previewTiles = {
+            x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+            y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+            width: selectedTiles.width,
+            height: selectedTiles.height,
+          }
+          if (
+            !previousPreviewTiles ||
+            areDifferent(previousPreviewTiles, previewTiles)
+          ) {
+            if (previousPreviewTiles) {
+              renderTiles(previousPreviewTiles)
+            }
+            renderPreviewTiles()
+          }
+        }
+      }
+    })
+
+    $canvas.addEventListener('pointerdown', function (event) {
+      isPointerDownInTileMap = true
+
+      if (selectedTiles) {
+        setTiles(event)
+      }
+    })
+
+    $canvas.addEventListener('mouseleave', function () {
+      if (previewTiles) {
+        renderTiles(previewTiles)
+        previewTiles = null
+      }
+    })
+
+    window.addEventListener('pointerup', function () {
+      isPointerDownInTileMap = false
+    })
+
+    const saveTileMap = debounce(function () {
+      localStorage.setItem('tileMap', JSON.stringify(tileMap))
+    })
+
+    function setTiles(event) {
+      const baseX = adjustToStep(event.offsetX, tileMap.tileSize.width)
+      const baseY = adjustToStep(event.offsetY, tileMap.tileSize.height)
+
+      let somethingHasChanged = false
+      for (let y = 0; y < selectedTiles.height; y += tileMap.tileSize.height) {
+        for (let x = 0; x < selectedTiles.width; x += tileMap.tileSize.width) {
+          const row = (baseY + y) / tileMap.tileSize.height + 1
+          const column = (baseX + x) / tileMap.tileSize.width + 1
+          const index = (row - 1) * tileMap.size.width + (column - 1)
+          const previousTile =
+            tileMap.tiles[level] && tileMap.tiles[level][index]
+          const selectedTile = {
+            x: selectedTiles.x + x,
+            y: selectedTiles.y + y,
+          }
+          if (!previousTile || areDifferent(previousTile, selectedTile)) {
+            if (!tileMap.tiles[level]) {
+              tileMap.tiles[level] = new Array(
+                tileMap.size.width * tileMap.size.height
+              )
+            }
+            tileMap.tiles[level][index] = selectedTile
+            const position = { x: baseX + x, y: baseY + y }
+            renderTile(position)
+            somethingHasChanged = true
+          }
+        }
+      }
+      if (somethingHasChanged) {
+        saveTileMap()
+      }
+    }
+
+    function renderTiles(area) {
+      for (
+        let y = area.y;
+        y < area.y + area.height;
+        y += tileMap.tileSize.height
+      ) {
+        for (
+          let x = area.x;
+          x < area.x + area.width;
+          x += tileMap.tileSize.width
+        ) {
+          renderTile({
+            x,
+            y,
+          })
+        }
+      }
+    }
+
+    function renderTile(position, maximumLevel = null) {
+      const tile = retrieveTile(position)
+      context.clearRect(
+        position.x,
+        position.y,
+        tileMap.tileSize.width,
+        tileMap.tileSize.height
+      )
+      if (tile) {
+        if (!maximumLevel) {
+          maximumLevel = Math.min(tile.length - 1, level)
+        }
+        for (let level2 = 0; level2 <= maximumLevel; level2++) {
+          const tileOnLayer = tile[level2]
+          if (tileOnLayer) {
+            context.drawImage(
+              $tileSet,
+              tileOnLayer.x,
+              tileOnLayer.y,
+              tileMap.tileSize.width,
+              tileMap.tileSize.height,
+              position.x,
+              position.y,
+              tileMap.tileSize.width,
+              tileMap.tileSize.height
+            )
+          }
+        }
+      } else {
+        renderEmptyTile(position)
+      }
+    }
+
+    function renderSelectedTiles(position, selectedTiles) {
+      if (level >= 1) {
+        for (
+          let y = 0;
+          y < selectedTiles.height;
+          y += tileMap.tileSize.height
+        ) {
+          for (
+            let x = 0;
+            x < selectedTiles.width;
+            x += tileMap.tileSize.width
+          ) {
+            renderTile(
+              {
+                x: selectedTiles.x + x,
+                y: selectedTiles.y + y,
+              },
+              level
+            )
+          }
+        }
+      }
+
+      context.drawImage(
+        $tileSet,
+        selectedTiles.x,
+        selectedTiles.y,
+        selectedTiles.width,
+        selectedTiles.height,
+        position.x,
+        position.y,
+        selectedTiles.width,
+        selectedTiles.height
+      )
+    }
+
+    function renderEmptyTile(position) {
+      context.fillStyle = 'white'
+      context.fillRect(
+        position.x,
+        position.y,
+        tileMap.tileSize.width,
+        tileMap.tileSize.height
+      )
+    }
+
+    function areDifferent(a, b) {
+      return (
+        a.x !== b.x ||
+        a.y !== b.y ||
+        ((a.width || b.width) && a.width !== b.width) ||
+        ((a.height || b.height) && a.height !== b.height)
+      )
+    }
+
+    function renderPreviewTiles() {
+      renderSelectedTiles(previewTiles, selectedTiles)
+    }
+
+    function renderTileMap() {
+      for (let y = 0; y < tileMap.size.height; y += tileMap.tileSize.height) {
+        for (let x = 0; x < tileMap.size.width; x += tileMap.tileSize.width) {
+          renderTile({ x, y })
+        }
+      }
+    }
+
+    function debounce(fn, delay = 1000) {
+      let handler = null
+      return function (...args) {
+        if (handler) {
+          clearTimeout(handler)
+        }
+        handler = setTimeout(() => {
+          fn(...args)
+        }, delay)
+      }
+    }
+
+    async function loadMap() {
+      const fileHandles = await window.showOpenFilePicker({
+        types: [
+          {
+            description: 'Map',
+            accept: {
+              'text/json': ['.json'],
+            },
+          },
+        ],
+        excludeAcceptAllOption: true,
+      })
+      const fileHandle = fileHandles[0]
+      const file = await fileHandle.getFile()
+      const content = await file.text()
+      tileMap = JSON.parse(content)
+      level = tileMap.tiles.length - 1
+      $level.value = level
+
+      $tileHover.style.width = tileMap.tileSize.width + 'px'
+      $tileHover.style.height = tileMap.tileSize.height + 'px'
+
+      $tileSelected.style.width = tileMap.tileSize.width + 'px'
+      $tileSelected.style.height = tileMap.tileSize.height + 'px'
+
+      renderTileMap()
+    }
+
+    async function saveMap() {
+      const handle = await window.showSaveFilePicker()
+      const stream = await handle.createWritable()
+      await stream.write(JSON.stringify(tileMap, null, 2))
+      await stream.close()
+    }
+  </script>
+</html>
