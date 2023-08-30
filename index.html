@@ -4,29 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tilemap Editor</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9"
+      crossorigin="anonymous"
+    />
     <style>
       body {
         display: flex;
         flex-direction: column;
         margin: 0;
         height: 100vh;
-      }
-
-      .menu {
-        flex: 0 0 16px;
-        background-color: gainsboro;
-        margin: 0;
-        padding: 0;
-      }
-
-      .menu ol {
-        list-style-type: none;
-        padding: 0;
-        margin: 0;
-      }
-
-      .menu ol button {
-        border: none;
       }
 
       .menu-icon-bar {
@@ -37,7 +26,7 @@
         background-color: rgb(250, 250, 250);
       }
 
-      .container {
+      .app-container {
         flex: 1 1 auto;
         display: flex;
         flex-direction: row;
@@ -73,19 +62,24 @@
 
       .main {
         flex: 1 1 auto;
-        overflow: auto;
         position: relative;
         background-color: #f1f1f1;
+        display: flex;
+        flex-direction: column;
       }
 
       .level {
         position: fixed;
-        right: 0.5rem;
+        right: 1.5rem;
         bottom: 0.5rem;
         width: 32px;
       }
 
-      .tileMap {
+      .tile-map-container {
+        overflow: auto;
+      }
+
+      .tile-map {
         display: block;
         background-color: white;
         border-bottom: 1px solid black;
@@ -98,12 +92,49 @@
     />
   </head>
   <body>
-    <menu class="menu">
-      <ol>
-        <li><button>File</button></li>
-      </ol>
-    </menu>
-    <div class="container">
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Tilemap Editor</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                File
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    data-bs-toggle="modal"
+                    data-bs-target="#tilemapSettings"
+                    >Edit tilemap</a
+                  >
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <div class="app-container">
       <div class="sidebar">
         <img class="tile-set" src="tileset.png" alt="Tileset" />
         <div class="tile-hover" style="display: none"></div>
@@ -112,21 +143,78 @@
       <div class="slider"></div>
       <div class="main">
         <div class="menu-icon-bar">
-          <button type="button" class="pen-tool-button">
+          <button type="button" class="pen-tool-button" title="Pen tool">
             <span class="material-symbols-outlined"> ink_pen </span>
           </button>
-          <button type="button" class="fill-tool-button">
+          <button type="button" class="area-tool-button" title="Draw area tool">
+            <span class="material-symbols-outlined"> rectangle </span>
+          </button>
+          <button type="button" class="fill-tool-button" title="Fill tool">
             <span class="material-symbols-outlined"> format_color_fill </span>
           </button>
-          <button type="button" class="toggle-grid-button">
+          <button type="button" class="toggle-grid-button" title="Toggle grid">
             <span class="material-symbols-outlined"> grid_on </span>
           </button>
         </div>
-        <canvas class="tileMap" width="1024" height="1024"></canvas>
+        <div class="tile-map-container">
+          <canvas class="tile-map" width="1024" height="1024"></canvas>
+        </div>
         <input class="level" type="number" value="0" title="Level" />
       </div>
     </div>
+
+    <div id="tilemapSettings" class="modal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="tilemapSettingsForm">
+            <div class="modal-header">
+              <h5 class="modal-title">Tilemap settings</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <label for="tilemapSettingsWidth" class="form-label">Width</label>
+              <input
+                type="number"
+                id="tilemapSettingsWidth"
+                name="width"
+                class="form-control"
+              />
+
+              <label for="tilemapSettingsHeight" class="form-label"
+                >Height</label
+              >
+              <input
+                type="number"
+                id="tilemapSettingsHeight"
+                name="height"
+                class="form-control"
+              />
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </body>
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm"
+    crossorigin="anonymous"
+  ></script>
   <script>
     let level = 0
     const isGridShownSerialized = localStorage.getItem('isGridShown')
@@ -237,11 +325,13 @@
       return Math.floor(value / step) * step
     }
 
-    const $canvas = document.querySelector('.tileMap')
+    const $canvas = document.querySelector('.tile-map')
     const context = $canvas.getContext('2d')
 
     let previewTiles = null
 
+    const DEFAULT_TILE_WIDTH = 32
+    const DEFAULT_TILE_HEIGHT = 32
     const DEFAULT_MAP_WIDTH = 512
     const DEFAULT_MAP_HEIGHT = 512
     const tileMapSerialized = localStorage.getItem('tileMap')
@@ -253,10 +343,15 @@
             height: DEFAULT_MAP_HEIGHT,
           },
           tileSize: {
-            width: 32,
-            height: 32,
+            width: DEFAULT_TILE_WIDTH,
+            height: DEFAULT_TILE_HEIGHT,
           },
-          tiles: [new Array(DEFAULT_MAP_WIDTH * DEFAULT_MAP_HEIGHT)],
+          tiles: [
+            new Array(
+              Math.ceil(DEFAULT_MAP_WIDTH / DEFAULT_TILE_WIDTH) *
+                Math.ceil(DEFAULT_MAP_HEIGHT / DEFAULT_TILE_HEIGHT)
+            ),
+          ],
         }
 
     $canvas.width = tileMap.size.width
@@ -274,9 +369,13 @@
     renderGrid()
 
     if (tileMapSerialized) {
-      $tileSet.addEventListener('load', function () {
+      if ($tileSet.complete) {
         renderTileMap()
-      })
+      } else {
+        $tileSet.addEventListener('load', function () {
+          renderTileMap()
+        })
+      }
     }
 
     function retrieveTile(position) {
@@ -306,14 +405,38 @@
         selectTileInTileMap(event)
 
         if (selectedTiles) {
-          if (!seemsThat9SliceIsSelected()) {
+          if (activeTool === 'pen') {
             setTiles(event)
           }
         }
       }
     })
 
+    function previewFill(event) {
+      doAFillMethod(event, function (tile, selectedTile) {
+        context.drawImage(
+          $tileSet,
+          selectedTile.x,
+          selectedTile.y,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height,
+          tile.column * tileMap.tileSize.width,
+          tile.row * tileMap.tileSize.height,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height
+        )
+      })
+    }
+
     function fill(event) {
+      doAFillMethod(event, function (tile, selectedTile) {
+        setTile(tile, selectedTile)
+      })
+      renderTileMap()
+      saveTileMap()
+    }
+
+    function doAFillMethod(event, fn) {
       const origin = {
         row:
           adjustToStep(event.offsetY, tileMap.tileSize.height) /
@@ -344,10 +467,6 @@
         return !visitedTiles.has(index)
       }
 
-      function fillTile(tile) {
-        setTile(tile, selectedTile)
-      }
-
       let nextTiles = [origin]
 
       do {
@@ -355,7 +474,7 @@
         nextTiles = []
         for (const tile of tiles) {
           if (hasNotBeenVisited(tile)) {
-            fillTile(tile)
+            fn(tile, selectedTile)
             setAsVisited(tile)
             const neighbors = retrieveNeighborsWithSetTile(
               tile,
@@ -365,9 +484,6 @@
           }
         }
       } while (nextTiles.length >= 1)
-
-      renderTileMap()
-      saveTileMap()
     }
 
     function retrieveNeighborsWithSetTile(tile, setTile) {
@@ -448,38 +564,65 @@
       })
     }
 
+    function previewArea() {
+      renderTileMap()
+
+      const numberOfRows = selectedTiles.height / tileMap.tileSize.height
+      const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
+      doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
+        context.drawImage(
+          $tileSet,
+          selectedTiles.x + (column % numberOfColumns) * tileMap.tileSize.width,
+          selectedTiles.y + (row % numberOfRows) * tileMap.tileSize.height,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height,
+          selectedTilesInTileMap.x + column * tileMap.tileSize.width,
+          selectedTilesInTileMap.y + row * tileMap.tileSize.height,
+          tileMap.tileSize.width,
+          tileMap.tileSize.height
+        )
+      })
+    }
+
     $canvas.addEventListener('pointermove', function (event) {
       if (selectedTiles) {
         if (isPointerDownInTileMap) {
-          if (seemsThat9SliceIsSelected()) {
+          if (activeTool === 'area') {
             expandSelectTilesInTileMap(event)
-            if (
-              selectedTilesInTileMap.width > tileMap.tileSize.width ||
-              selectedTilesInTileMap.height > tileMap.tileSize.height
-            ) {
+            if (seemsThat9SliceIsSelected()) {
               preview9SliceMade()
+              renderGrid()
+            } else {
+              previewArea()
+              renderGrid()
             }
-          } else {
+          } else if (activeTool === 'pen') {
             setTiles(event)
             renderGrid()
           }
         } else {
-          const previousPreviewTiles = previewTiles
-          previewTiles = {
-            x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-            y: adjustToStep(event.offsetY, tileMap.tileSize.height),
-            width: selectedTiles.width,
-            height: selectedTiles.height,
-          }
-          if (
-            !previousPreviewTiles ||
-            areDifferent(previousPreviewTiles, previewTiles)
-          ) {
-            if (previousPreviewTiles) {
-              renderTiles(previousPreviewTiles)
+          if (activeTool === 'pen') {
+            const previousPreviewTiles = previewTiles
+            previewTiles = {
+              x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+              y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+              width: selectedTiles.width,
+              height: selectedTiles.height,
+            }
+            if (
+              !previousPreviewTiles ||
+              areDifferent(previousPreviewTiles, previewTiles)
+            ) {
+              if (previousPreviewTiles) {
+                renderTiles(previousPreviewTiles)
+              }
+              renderPreviewTiles()
               renderGrid()
             }
-            renderPreviewTiles()
+          } else if (activeTool === 'fill') {
+            renderTileMap()
+            previewFill(event)
+            renderGrid()
           }
         }
       }
@@ -504,11 +647,8 @@
     }
 
     $canvas.addEventListener('mouseleave', function () {
-      if (previewTiles) {
-        renderTiles(previewTiles)
-        renderGrid()
-        previewTiles = null
-      }
+      previewTiles = null
+      renderTileMap()
     })
 
     window.addEventListener('pointerup', function () {
@@ -517,14 +657,11 @@
       isPointerDownInTileMap = false
 
       if (wasPointerDownInTileMap) {
-        if (seemsThat9SliceIsSelected()) {
-          if (
-            selectedTilesInTileMap.width === tileMap.tileSize.width &&
-            selectedTilesInTileMap.height === tileMap.tileSize.height
-          ) {
-            putSelectedTilesOnMap()
-          } else {
+        if (activeTool === 'area') {
+          if (seemsThat9SliceIsSelected()) {
             setTilesWith9SliceMethod()
+          } else {
+            area()
           }
         }
       }
@@ -538,6 +675,27 @@
         offsetX: firstPointTileMap.x,
         offsetY: firstPointTileMap.y,
       })
+    }
+
+    function area() {
+      const numberOfRows = selectedTiles.height / tileMap.tileSize.height
+      const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
+      const baseRow = selectedTilesInTileMap.y / tileMap.tileSize.height
+      const baseColumn = selectedTilesInTileMap.x / tileMap.tileSize.width
+      doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
+        const selectedTile = {
+          x:
+            selectedTiles.x +
+            (column % numberOfColumns) * tileMap.tileSize.width,
+          y: selectedTiles.y + (row % numberOfRows) * tileMap.tileSize.height,
+        }
+        setTile(
+          { row: baseRow + row, column: baseColumn + column },
+          selectedTile
+        )
+      })
+      renderTileMap()
+      saveTileMap()
     }
 
     function setTilesWith9SliceMethod() {
@@ -656,16 +814,6 @@
       }
     }
 
-    const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
-    fillToolButton.addEventListener('click', function () {
-      activeTool = 'fill'
-      updateToolButtonStates()
-    })
-
-    function updateFillToolButton() {
-      updateToolButton(fillToolButton, 'fill')
-    }
-
     const penToolButton = menuIconBar.querySelector('.pen-tool-button')
     penToolButton.addEventListener('click', function () {
       activeTool = 'pen'
@@ -676,11 +824,96 @@
       updateToolButton(penToolButton, 'pen')
     }
 
+    const areaToolButton = menuIconBar.querySelector('.area-tool-button')
+    areaToolButton.addEventListener('click', function () {
+      activeTool = 'area'
+      updateToolButtonStates()
+    })
+
+    function updateAreaToolButton() {
+      updateToolButton(areaToolButton, 'area')
+    }
+
+    const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
+    fillToolButton.addEventListener('click', function () {
+      activeTool = 'fill'
+      updateToolButtonStates()
+    })
+
+    function updateFillToolButton() {
+      updateToolButton(fillToolButton, 'fill')
+    }
+
     updateToolButtonStates()
 
     const saveTileMap = debounce(function () {
       localStorage.setItem('tileMap', JSON.stringify(tileMap))
     })
+
+    const tilemapSettingsModal = document.querySelector('#tilemapSettings')
+    const modal = new bootstrap.Modal(tilemapSettingsModal)
+
+    tilemapSettingsModal.addEventListener('show.bs.modal', function () {
+      tilemapSettingsModal.querySelector('#tilemapSettingsWidth').value =
+        tileMap.size.width / tileMap.tileSize.width
+      tilemapSettingsModal.querySelector('#tilemapSettingsHeight').value =
+        tileMap.size.height / tileMap.tileSize.height
+    })
+
+    tilemapSettingsModal.addEventListener('shown.bs.modal', function () {
+      const $width = tilemapSettingsModal.querySelector('#tilemapSettingsWidth')
+      $width.focus()
+      $width.select()
+    })
+
+    tilemapSettingsModal
+      .querySelector('#tilemapSettingsForm')
+      .addEventListener('submit', function (event) {
+        event.preventDefault()
+
+        const formData = new FormData(event.target)
+
+        const width = parseInt(formData.get('width'), 10)
+        const height = parseInt(formData.get('height'), 10)
+
+        resizeMap({
+          width: width * tileMap.tileSize.width,
+          height: height * tileMap.tileSize.height,
+        })
+
+        $canvas.width = tileMap.size.width
+        $canvas.height = tileMap.size.height
+
+        renderTileMap()
+
+        saveTileMap()
+
+        modal.hide()
+      })
+
+    function resizeMap({ width, height }) {
+      const oldNumberOfRows = Math.ceil(
+        tileMap.size.height / tileMap.tileSize.height
+      )
+      const oldNumberOfColumns = Math.ceil(
+        tileMap.size.width / tileMap.tileSize.width
+      )
+      const numberOfRows = Math.ceil(height / tileMap.tileSize.height)
+      const numberOfColumns = Math.ceil(width / tileMap.tileSize.width)
+      tileMap.tiles = tileMap.tiles.map(function (oldTiles) {
+        const updatedTiles = new Array(numberOfRows * numberOfColumns)
+        for (let row = 0; row < oldNumberOfRows; row++) {
+          const startIndex = row * oldNumberOfColumns
+          for (let index = 0; index < oldNumberOfColumns; index++) {
+            updatedTiles[row * numberOfColumns + index] =
+              oldTiles[startIndex + index]
+          }
+        }
+        return updatedTiles
+      })
+      tileMap.size.width = width
+      tileMap.size.height = height
+    }
 
     function setTiles(event) {
       const baseX = adjustToStep(event.offsetX, tileMap.tileSize.width)
@@ -711,7 +944,9 @@
     }
 
     function calculateIndex({ row, column }) {
-      return row * tileMap.size.width + column
+      return (
+        row * Math.ceil(tileMap.size.width / tileMap.tileSize.width) + column
+      )
     }
 
     function setTile({ row, column }, tile) {
@@ -720,7 +955,8 @@
       if (!previousTile || areDifferent(previousTile, tile)) {
         if (!tileMap.tiles[level]) {
           tileMap.tiles[level] = new Array(
-            tileMap.size.width * tileMap.size.height
+            Math.ceil(tileMap.size.width / tileMap.tileSize.width) *
+              Math.ceil(tileMap.size.height / tileMap.tileSize.height)
           )
         }
         tileMap.tiles[level][index] = tile
@@ -796,14 +1032,16 @@
           ) {
             renderTile(
               {
-                x: selectedTiles.x + x,
-                y: selectedTiles.y + y,
+                x: position.x + x,
+                y: position.y + y,
               },
               level
             )
           }
         }
       }
+
+      renderGrid()
 
       context.drawImage(
         $tileSet,
