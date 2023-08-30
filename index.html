@@ -128,6 +128,16 @@
                     >Edit tilemap</a
                   >
                 </li>
+                <li>
+                  <a id="importFromFile" class="dropdown-item" href="#"
+                    >Import from file</a
+                  >
+                </li>
+                <li>
+                  <a id="exportToFile" class="dropdown-item" href="#"
+                    >Export to file</a
+                  >
+                </li>
               </ul>
             </li>
           </ul>
@@ -414,26 +424,39 @@
 
     function previewFill(event) {
       doAFillMethod(event, function (tile, selectedTile) {
-        context.drawImage(
-          $tileSet,
-          selectedTile.x,
-          selectedTile.y,
-          tileMap.tileSize.width,
-          tileMap.tileSize.height,
-          tile.column * tileMap.tileSize.width,
-          tile.row * tileMap.tileSize.height,
-          tileMap.tileSize.width,
-          tileMap.tileSize.height
+        const replacements = []
+        replacements[level] = selectedTile
+        renderTile2(
+          {
+            x: tile.column * tileMap.tileSize.width,
+            y: tile.row * tileMap.tileSize.height,
+          },
+          replacements
         )
       })
     }
 
     function fill(event) {
+      backupMap()
       doAFillMethod(event, function (tile, selectedTile) {
         setTile(tile, selectedTile)
       })
       renderTileMap()
       saveTileMap()
+    }
+
+    const backups = []
+
+    function backupMap() {
+      backups.push(copyMap(tileMap))
+    }
+
+    function copyMap(tileMap) {
+      return {
+        size: { ...tileMap.size },
+        tileSize: { ...tileMap.tileSize },
+        tiles: tileMap.tiles.map(tiles => Array.from(tiles)),
+      }
     }
 
     function doAFillMethod(event, fn) {
@@ -601,7 +624,7 @@
             renderGrid()
           }
         } else {
-          if (activeTool === 'pen') {
+          if (activeTool === 'pen' || activeTool === 'area') {
             const previousPreviewTiles = previewTiles
             previewTiles = {
               x: adjustToStep(event.offsetX, tileMap.tileSize.width),
@@ -678,6 +701,8 @@
     }
 
     function area() {
+      backupMap()
+
       const numberOfRows = selectedTiles.height / tileMap.tileSize.height
       const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
       const baseRow = selectedTilesInTileMap.y / tileMap.tileSize.height
@@ -892,6 +917,8 @@
       })
 
     function resizeMap({ width, height }) {
+      backupMap()
+
       const oldNumberOfRows = Math.ceil(
         tileMap.size.height / tileMap.tileSize.height
       )
@@ -902,9 +929,17 @@
       const numberOfColumns = Math.ceil(width / tileMap.tileSize.width)
       tileMap.tiles = tileMap.tiles.map(function (oldTiles) {
         const updatedTiles = new Array(numberOfRows * numberOfColumns)
-        for (let row = 0; row < oldNumberOfRows; row++) {
+        for (
+          let row = 0;
+          row < Math.min(oldNumberOfRows, numberOfRows);
+          row++
+        ) {
           const startIndex = row * oldNumberOfColumns
-          for (let index = 0; index < oldNumberOfColumns; index++) {
+          for (
+            let index = 0;
+            index < Math.min(oldNumberOfColumns, numberOfColumns);
+            index++
+          ) {
             updatedTiles[row * numberOfColumns + index] =
               oldTiles[startIndex + index]
           }
@@ -916,6 +951,8 @@
     }
 
     function setTiles(event) {
+      backupMap()
+
       const baseX = adjustToStep(event.offsetX, tileMap.tileSize.width)
       const baseY = adjustToStep(event.offsetY, tileMap.tileSize.height)
 
@@ -977,7 +1014,7 @@
           x < area.x + area.width;
           x += tileMap.tileSize.width
         ) {
-          renderTile({
+          renderTile2({
             x,
             y,
           })
@@ -1018,42 +1055,61 @@
       }
     }
 
-    function renderSelectedTiles(position, selectedTiles) {
-      if (level >= 1) {
-        for (
-          let y = 0;
-          y < selectedTiles.height;
-          y += tileMap.tileSize.height
-        ) {
-          for (
-            let x = 0;
-            x < selectedTiles.width;
-            x += tileMap.tileSize.width
-          ) {
-            renderTile(
-              {
-                x: position.x + x,
-                y: position.y + y,
-              },
-              level
+    function renderTile2(position, replacements = null) {
+      const tile = retrieveTile(position)
+      context.clearRect(
+        position.x,
+        position.y,
+        tileMap.tileSize.width,
+        tileMap.tileSize.height
+      )
+      if (tile) {
+        context.save()
+        for (let level2 = 0; level2 < tile.length; level2++) {
+          const tileOnLayer =
+            replacements && replacements[level2]
+              ? replacements[level2]
+              : tile[level2]
+          if (tileOnLayer) {
+            context.globalAlpha = level2 > level ? 0.4 : 1
+            context.drawImage(
+              $tileSet,
+              tileOnLayer.x,
+              tileOnLayer.y,
+              tileMap.tileSize.width,
+              tileMap.tileSize.height,
+              position.x,
+              position.y,
+              tileMap.tileSize.width,
+              tileMap.tileSize.height
             )
           }
+        }
+        context.restore()
+      } else {
+        renderEmptyTile(position)
+      }
+    }
+
+    function renderSelectedTiles(position, selectedTiles) {
+      for (let y = 0; y < selectedTiles.height; y += tileMap.tileSize.height) {
+        for (let x = 0; x < selectedTiles.width; x += tileMap.tileSize.width) {
+          const replacements = []
+          replacements[level] = {
+            x: selectedTiles.x + x,
+            y: selectedTiles.y + y,
+          }
+          renderTile2(
+            {
+              x: position.x + x,
+              y: position.y + y,
+            },
+            replacements
+          )
         }
       }
 
       renderGrid()
-
-      context.drawImage(
-        $tileSet,
-        selectedTiles.x,
-        selectedTiles.y,
-        selectedTiles.width,
-        selectedTiles.height,
-        position.x,
-        position.y,
-        selectedTiles.width,
-        selectedTiles.height
-      )
     }
 
     function renderEmptyTile(position) {
@@ -1082,7 +1138,7 @@
     function renderTileMap() {
       for (let y = 0; y < tileMap.size.height; y += tileMap.tileSize.height) {
         for (let x = 0; x < tileMap.size.width; x += tileMap.tileSize.width) {
-          renderTile({ x, y })
+          renderTile2({ x, y })
         }
       }
 
@@ -1123,24 +1179,31 @@
       }
     }
 
+    const types = [
+      {
+        description: 'Map',
+        accept: {
+          'text/json': ['.json'],
+        },
+      },
+    ]
+
+    const filePickerBaseOptions = {
+      excludeAcceptAllOption: true,
+      types,
+    }
+
     async function loadMap() {
-      const fileHandles = await window.showOpenFilePicker({
-        types: [
-          {
-            description: 'Map',
-            accept: {
-              'text/json': ['.json'],
-            },
-          },
-        ],
-        excludeAcceptAllOption: true,
-      })
+      const fileHandles = await window.showOpenFilePicker(filePickerBaseOptions)
       const fileHandle = fileHandles[0]
       const file = await fileHandle.getFile()
       const content = await file.text()
       tileMap = JSON.parse(content)
       level = tileMap.tiles.length - 1
       $level.value = level
+
+      $canvas.width = tileMap.size.width
+      $canvas.height = tileMap.size.height
 
       $tileHover.style.width = tileMap.tileSize.width + 'px'
       $tileHover.style.height = tileMap.tileSize.height + 'px'
@@ -1149,13 +1212,55 @@
       $tileSelected.style.height = tileMap.tileSize.height + 'px'
 
       renderTileMap()
+
+      saveTileMap()
     }
 
     async function saveMap() {
-      const handle = await window.showSaveFilePicker()
+      const handle = await window.showSaveFilePicker({
+        ...filePickerBaseOptions,
+        suggestedName: 'map.json',
+      })
       const stream = await handle.createWritable()
       await stream.write(JSON.stringify(tileMap, null, 2))
       await stream.close()
     }
+
+    window.addEventListener('keydown', function (event) {
+      if (event.ctrlKey && event.key === 'z') {
+        event.preventDefault()
+        undo()
+      }
+    })
+
+    function undo() {
+      const lastBackup = backups.pop()
+      if (lastBackup) {
+        const oldTileMap = tileMap
+        tileMap = lastBackup
+        if (tileMap.size.width !== oldTileMap.size.width) {
+          canvas.width = tileMap.size.width
+        }
+        if (tileMap.size.height !== oldTileMap.size.height) {
+          canvas.height = tileMap.size.height
+        }
+        renderTileMap()
+        saveTileMap()
+      }
+    }
+
+    document
+      .querySelector('#exportToFile')
+      .addEventListener('click', function (event) {
+        event.preventDefault()
+        saveMap()
+      })
+
+    document
+      .querySelector('#importFromFile')
+      .addEventListener('click', function (event) {
+        event.preventDefault()
+        loadMap()
+      })
   </script>
 </html>
