@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "scripts": {
+    "development": "node development.js",
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.2.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.2",
+    "esbuild-plugin-polyfill-node": "^0.3.0"
+  }
+}
