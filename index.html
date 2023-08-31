@@ -47,7 +47,11 @@
       }
 
       .menu-icon-bar-sidebar {
-        flex: 1 0 auto;
+        flex: 0 0 auto;
+      }
+
+      .menu-icon-bar-main {
+        flex: 0 0 auto;
       }
 
       .tile-set-container {
@@ -424,7 +428,7 @@
       if (tileSetUrl) {
         $tileSet.src = tileSetUrl
       } else {
-        $tileSet.rc = 'tileset.png'
+        $tileSet.src = 'tileset.png'
       }
     }
 
