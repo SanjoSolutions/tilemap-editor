@@ -18,12 +18,18 @@
         height: 100vh;
       }
 
-      .menu-icon-bar {
-        background-color: gainsboro;
+      .app-navbar {
+        border-bottom: 1px solid gainsboro;
       }
 
-      .menu-icon-bar__button--enabled {
-        background-color: rgb(250, 250, 250);
+      .menu-icon-bar {
+        background-color: rgb(var(--bs-tertiary-bg-rgb));
+        border-radius: 0 !important;
+        border-bottom: 1px solid gainsboro;
+      }
+
+      .menu-icon-bar button {
+        border-radius: 0;
       }
 
       .app-container {
@@ -35,6 +41,17 @@
 
       .sidebar {
         flex: 0 0 200px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .menu-icon-bar-sidebar {
+        flex: 1 0 auto;
+      }
+
+      .tile-set-container {
+        flex: 1 1 auto;
         overflow: auto;
         position: relative;
       }
@@ -55,15 +72,25 @@
 
       .slider {
         flex: 0 0 auto;
-        border-right: 1px solid black;
-        width: 0;
+        background-color: gainsboro;
+        width: 1px;
+        position: relative;
+      }
+
+      .slider__drag-area {
+        width: 17px;
+        position: absolute;
+        left: -8px;
+        right: -8px;
+        top: 0;
+        bottom: 0;
         cursor: col-resize;
+        z-index: 1;
       }
 
       .main {
         flex: 1 1 auto;
         position: relative;
-        background-color: #f1f1f1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -78,6 +105,7 @@
 
       .tile-map-container {
         overflow: auto;
+        background-color: #f1f1f1;
       }
 
       .tile-map {
@@ -93,7 +121,7 @@
     />
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <nav class="app-navbar navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">Tilemap Editor</a>
         <button
@@ -120,6 +148,15 @@
                 File
               </a>
               <ul class="dropdown-menu">
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    data-bs-toggle="modal"
+                    data-bs-target="#newTileMap"
+                    >New tilemap</a
+                  >
+                </li>
                 <li>
                   <a
                     class="dropdown-item"
@@ -165,37 +202,129 @@
     </nav>
     <div class="app-container">
       <div class="sidebar">
-        <img class="tile-set" src="tileset.png" alt="Tileset" />
-        <div class="tile-hover" style="display: none"></div>
-        <div class="tile-selected" style="display: none"></div>
-      </div>
-      <div class="slider"></div>
-      <div class="main">
-        <div class="menu-icon-bar">
-          <button type="button" class="pen-tool-button" title="Pen tool">
-            <span class="material-symbols-outlined"> ink_pen </span>
-          </button>
-          <button type="button" class="area-tool-button" title="Draw area tool">
-            <span class="material-symbols-outlined"> rectangle </span>
-          </button>
-          <button type="button" class="fill-tool-button" title="Fill tool">
-            <span class="material-symbols-outlined"> format_color_fill </span>
-          </button>
-          <button type="button" class="toggle-grid-button" title="Toggle grid">
-            <span class="material-symbols-outlined"> grid_on </span>
-          </button>
-          <button
-            type="button"
-            class="render-only-current-level-button"
-            title="Render only current level"
-          >
-            <span class="material-symbols-outlined"> grid_on </span>
-          </button>
+        <div
+          class="btn-toolbar menu-icon-bar menu-icon-bar-sidebar"
+          role="toolbar"
+          aria-label="Button toolbar"
+        >
+          <div class="btn-group" role="group" aria-label="Tools">
+            <button
+              type="button"
+              class="load-tileset-button btn btn-light"
+              title="Load tileset"
+            >
+              <span class="material-symbols-outlined"> folder_open </span>
+            </button>
+          </div>
         </div>
+        <div class="tile-set-container">
+          <img class="tile-set" alt="Tileset" />
+          <div class="tile-hover" style="display: none"></div>
+          <div class="tile-selected" style="display: none"></div>
+        </div>
+      </div>
+      <div class="slider">
+        <div class="slider__drag-area"></div>
+      </div>
+      <div class="main">
+        <div
+          class="btn-toolbar menu-icon-bar menu-icon-bar-main"
+          role="toolbar"
+          aria-label="Button toolbar"
+        >
+          <div class="btn-group me-2" role="group" aria-label="Tools">
+            <button
+              type="button"
+              class="pen-tool-button btn btn-light"
+              title="Pen tool"
+            >
+              <span class="material-symbols-outlined"> ink_pen </span>
+            </button>
+            <button
+              type="button"
+              class="area-tool-button btn btn-light"
+              title="Draw area tool"
+            >
+              <span class="material-symbols-outlined"> rectangle </span>
+            </button>
+            <button
+              type="button"
+              class="fill-tool-button btn btn-light"
+              title="Fill tool"
+            >
+              <span class="material-symbols-outlined"> format_color_fill </span>
+            </button>
+          </div>
+
+          <div class="btn-group" role="group" aria-label="Options">
+            <button
+              type="button"
+              class="toggle-grid-button btn btn-light"
+              title="Toggle grid"
+            >
+              <span class="material-symbols-outlined"> grid_on </span>
+            </button>
+            <button
+              type="button"
+              class="render-only-current-level-button btn btn-light"
+              title="Render only current level"
+            >
+              <span class="material-symbols-outlined">
+                check_indeterminate_small
+              </span>
+            </button>
+          </div>
+        </div>
+
         <div class="tile-map-container">
           <canvas class="tile-map" width="1024" height="1024"></canvas>
         </div>
         <input class="level" type="number" value="0" title="Level" />
+      </div>
+    </div>
+
+    <div id="newTileMap" class="modal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="tilemapSettingsForm">
+            <div class="modal-header">
+              <h5 class="modal-title">New tilemap</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <label for="newTileMapWidth" class="form-label">Width</label>
+              <input
+                type="number"
+                id="newTileMapWidth"
+                name="width"
+                class="form-control"
+              />
+
+              <label for="newTileMapHeight" class="form-label">Height</label>
+              <input
+                type="number"
+                id="newTileMapHeight"
+                name="height"
+                class="form-control"
+              />
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -257,6 +386,16 @@
     let activeTool = 'pen'
     let renderOnlyCurrentLevel = false
 
+    {
+      const $tileSet = document.querySelector('.tile-set')
+      const tileSetUrl = localStorage.getItem('tileSetUrl')
+      if (tileSetUrl) {
+        $tileSet.src = tileSetUrl
+      } else {
+        $tileSet.rc = 'tileset.png'
+      }
+    }
+
     let isGridShown = isGridShownSerialized
       ? JSON.parse(isGridShownSerialized)
       : true
@@ -270,21 +409,27 @@
 
     const $sidebar = document.querySelector('.sidebar')
 
-    const $slider = document.querySelector('.slider')
-    let isSliding = false
-    $slider.addEventListener('pointerdown', function (event) {
-      event.preventDefault()
-      isSliding = true
-    })
-    window.addEventListener('pointermove', function (event) {
-      if (isSliding) {
+    {
+      let offset = null
+      const $sliderDragArea = document.querySelector('.slider__drag-area')
+      let isSliding = false
+      $sliderDragArea.addEventListener('pointerdown', function (event) {
         event.preventDefault()
-        $sidebar.style.flexBasis = event.clientX + 'px'
-      }
-    })
-    window.addEventListener('pointerup', function () {
-      isSliding = false
-    })
+        isSliding = true
+        offset = event.offsetX - (17 - 1) / 2
+        console.log(offset)
+      })
+      window.addEventListener('pointermove', function (event) {
+        if (isSliding) {
+          event.preventDefault()
+          $sidebar.style.flexBasis = event.clientX - offset + 'px'
+        }
+      })
+      window.addEventListener('pointerup', function () {
+        isSliding = false
+        offset = null
+      })
+    }
 
     const $tileHover = document.querySelector('.tile-hover')
     const $tileSet = document.querySelector('.tile-set')
@@ -854,14 +999,14 @@
       return width / tileMap.tileSize.width
     }
 
-    const menuIconBar = document.querySelector('.menu-icon-bar')
+    const menuIconBar = document.querySelector('.menu-icon-bar-main')
     const toggleGridButton = menuIconBar.querySelector('.toggle-grid-button')
 
     function updateToggleGridButton() {
       if (isGridShown) {
-        toggleGridButton.classList.add('menu-icon-bar__button--enabled')
+        toggleGridButton.classList.add('active')
       } else {
-        toggleGridButton.classList.remove('menu-icon-bar__button--enabled')
+        toggleGridButton.classList.remove('active')
       }
     }
 
@@ -876,14 +1021,15 @@
 
     function updateToolButtonStates() {
       updatePenToolButton()
+      updateAreaToolButton()
       updateFillToolButton()
     }
 
     function updateToolButton(button, tool) {
       if (activeTool === tool) {
-        button.classList.add('menu-icon-bar__button--enabled')
+        button.classList.add('active')
       } else {
-        button.classList.remove('menu-icon-bar__button--enabled')
+        button.classList.remove('active')
       }
     }
 
@@ -924,8 +1070,17 @@
     )
     renderOnlyCurrentLevelButton.addEventListener('click', function () {
       renderOnlyCurrentLevel = !renderOnlyCurrentLevel
+      updateRenderOnlyCurrentLevelButton()
       renderTileMap()
     })
+
+    function updateRenderOnlyCurrentLevelButton() {
+      if (renderOnlyCurrentLevel) {
+        renderOnlyCurrentLevelButton.classList.add('active')
+      } else {
+        renderOnlyCurrentLevelButton.classList.remove('active')
+      }
+    }
 
     const saveTileMap = debounce(function () {
       localStorage.setItem('tileMap', JSON.stringify(tileMap))
@@ -971,6 +1126,49 @@
 
         modal.hide()
       })
+
+    {
+      const newTileMapModal = document.querySelector('#newTileMap')
+      const modal = new bootstrap.Modal(newTileMapModal)
+
+      newTileMapModal.addEventListener('show.bs.modal', function () {
+        newTileMapModal.querySelector('#newTileMapWidth').value =
+          tileMap.size.width / tileMap.tileSize.width
+        newTileMapModal.querySelector('#newTileMapHeight').value =
+          tileMap.size.height / tileMap.tileSize.height
+      })
+
+      newTileMapModal.addEventListener('shown.bs.modal', function () {
+        const $width = newTileMapModal.querySelector('#tilemapSettingsWidth')
+        $width.focus()
+        $width.select()
+      })
+
+      newTileMapModal
+        .querySelector('#tilemapSettingsForm')
+        .addEventListener('submit', function (event) {
+          event.preventDefault()
+
+          const formData = new FormData(event.target)
+
+          const width = parseInt(formData.get('width'), 10)
+          const height = parseInt(formData.get('height'), 10)
+
+          resizeMap({
+            width: width * tileMap.tileSize.width,
+            height: height * tileMap.tileSize.height,
+          })
+
+          $canvas.width = tileMap.size.width
+          $canvas.height = tileMap.size.height
+
+          renderTileMap()
+
+          saveTileMap()
+
+          modal.hide()
+        })
+    }
 
     function resizeMap({ width, height }) {
       backUpMap()
@@ -1266,7 +1464,6 @@
     })
 
     function undo() {
-      console.log('undo')
       const lastBackup = backups.pop()
       if (lastBackup) {
         const oldTileMap = tileMap
@@ -1299,6 +1496,45 @@
     const $undo = document.querySelector('#undo')
     $undo.addEventListener('click', function () {
       undo()
+    })
+
+    const loadTileSetButton = document.querySelector('.load-tileset-button')
+    loadTileSetButton.addEventListener('click', async function () {
+      const fileHandles = await window.showOpenFilePicker({
+        excludeAcceptAllOption: true,
+        types: [
+          {
+            description: 'Image',
+            accept: {
+              'image/*': [
+                '.apng',
+                '.avif',
+                '.gif',
+                '.jpg',
+                '.jpeg',
+                '.jfif',
+                '.pjpeg',
+                '.pjp',
+                '.png',
+                '.svg',
+                '.webp',
+                '.bmp',
+                '.tif',
+                '.tiff',
+              ],
+            },
+          },
+        ],
+      })
+      const fileHandle = fileHandles[0]
+      const file = await fileHandle.getFile()
+      const fileReader = new FileReader()
+      fileReader.onloadend = function () {
+        const url = fileReader.result
+        document.querySelector('.tile-set').src = url
+        localStorage.setItem('tileSetUrl', url)
+      }
+      fileReader.readAsDataURL(file)
     })
   </script>
 </html>
