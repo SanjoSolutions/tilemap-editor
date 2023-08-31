@@ -219,7 +219,7 @@
             <button
               type="button"
               class="load-tileset-button btn btn-light"
-              title="Load tileset"
+              title="Load tileset (Ctrl + Alt + O)"
             >
               <span class="material-symbols-outlined"> folder_open </span>
             </button>
@@ -1659,6 +1659,12 @@
       ) {
         event.preventDefault()
         saveMap()
+      } else if (
+        isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
+        event.key === 'o'
+      ) {
+        event.preventDefault()
+        loadTileSet()
       } else if (event.code === 'Escape') {
         if (isInPasteMode) {
           event.preventDefault()
@@ -1673,6 +1679,12 @@
     function isOnlyCtrlOrCmdModifierKeyPressed(event) {
       return (
         isCtrlOrCmdModifierKeyPressed(event) && !event.shiftKey && !event.altKey
+      )
+    }
+
+    function isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) {
+      return (
+        isCtrlOrCmdModifierKeyPressed(event) && !event.shiftKey && event.altKey
       )
     }
 
@@ -1917,42 +1929,54 @@
     })
 
     const loadTileSetButton = document.querySelector('.load-tileset-button')
-    loadTileSetButton.addEventListener('click', async function () {
-      const fileHandles = await window.showOpenFilePicker({
-        excludeAcceptAllOption: true,
-        types: [
-          {
-            description: 'Image',
-            accept: {
-              'image/*': [
-                '.apng',
-                '.avif',
-                '.gif',
-                '.jpg',
-                '.jpeg',
-                '.jfif',
-                '.pjpeg',
-                '.pjp',
-                '.png',
-                '.svg',
-                '.webp',
-                '.bmp',
-                '.tif',
-                '.tiff',
-              ],
+
+    async function loadTileSet() {
+      let fileHandles
+      try {
+        fileHandles = await window.showOpenFilePicker({
+          excludeAcceptAllOption: true,
+          types: [
+            {
+              description: 'Image',
+              accept: {
+                'image/*': [
+                  '.apng',
+                  '.avif',
+                  '.gif',
+                  '.jpg',
+                  '.jpeg',
+                  '.jfif',
+                  '.pjpeg',
+                  '.pjp',
+                  '.png',
+                  '.svg',
+                  '.webp',
+                  '.bmp',
+                  '.tif',
+                  '.tiff',
+                ],
+              },
             },
-          },
-        ],
-      })
-      const fileHandle = fileHandles[0]
-      const file = await fileHandle.getFile()
-      const fileReader = new FileReader()
-      fileReader.onloadend = function () {
-        const url = fileReader.result
-        document.querySelector('.tile-set').src = url
-        localStorage.setItem('tileSetUrl', url)
+          ],
+        })
+      } catch (error) {
+        if (error.code !== ABORT_ERROR) {
+          throw error
+        }
       }
-      fileReader.readAsDataURL(file)
-    })
+      if (fileHandles) {
+        fileHandle = fileHandles[0]
+        const file = await fileHandle.getFile()
+        const fileReader = new FileReader()
+        fileReader.onloadend = function () {
+          const url = fileReader.result
+          document.querySelector('.tile-set').src = url
+          localStorage.setItem('tileSetUrl', url)
+        }
+        fileReader.readAsDataURL(file)
+      }
+    }
+
+    loadTileSetButton.addEventListener('click', loadTileSet)
   </script>
 </html>
