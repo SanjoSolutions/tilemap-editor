@@ -162,7 +162,7 @@
                     href="#"
                     data-bs-toggle="modal"
                     data-bs-target="#newTileMap"
-                    >New tilemap</a
+                    >New tilemap (Ctrl + Alt + N)</a
                   >
                 </li>
                 <li>
@@ -171,7 +171,7 @@
                     href="#"
                     data-bs-toggle="modal"
                     data-bs-target="#tilemapSettings"
-                    >Edit tilemap</a
+                    >Edit tilemap (Ctrl + E)</a
                   >
                 </li>
                 <li>
@@ -439,7 +439,6 @@
         event.preventDefault()
         isSliding = true
         offset = event.offsetX - (17 - 1) / 2
-        console.log(offset)
       })
       window.addEventListener('pointermove', function (event) {
         if (isSliding) {
@@ -624,7 +623,6 @@
     const backups = []
 
     function backUpMap() {
-      console.log('backUp')
       backups.push(copyMap(tileMap))
     }
 
@@ -1162,23 +1160,29 @@
       localStorage.setItem('tileMap', JSON.stringify(tileMap))
     })
 
-    const tilemapSettingsModal = document.querySelector('#tilemapSettings')
-    const modal = new bootstrap.Modal(tilemapSettingsModal)
+    const $tileMapSettingsModal = document.querySelector('#tilemapSettings')
+    const tileMapSettingsModal = new bootstrap.Modal($tileMapSettingsModal)
 
-    tilemapSettingsModal.addEventListener('show.bs.modal', function () {
-      tilemapSettingsModal.querySelector('#tilemapSettingsWidth').value =
+    function showEditMapDialog() {
+      tileMapSettingsModal.show()
+    }
+
+    $tileMapSettingsModal.addEventListener('show.bs.modal', function () {
+      $tileMapSettingsModal.querySelector('#tilemapSettingsWidth').value =
         tileMap.size.width / tileMap.tileSize.width
-      tilemapSettingsModal.querySelector('#tilemapSettingsHeight').value =
+      $tileMapSettingsModal.querySelector('#tilemapSettingsHeight').value =
         tileMap.size.height / tileMap.tileSize.height
     })
 
-    tilemapSettingsModal.addEventListener('shown.bs.modal', function () {
-      const $width = tilemapSettingsModal.querySelector('#tilemapSettingsWidth')
+    $tileMapSettingsModal.addEventListener('shown.bs.modal', function () {
+      const $width = $tileMapSettingsModal.querySelector(
+        '#tilemapSettingsWidth'
+      )
       $width.focus()
       $width.select()
     })
 
-    tilemapSettingsModal
+    $tileMapSettingsModal
       .querySelector('#tilemapSettingsForm')
       .addEventListener('submit', function (event) {
         event.preventDefault()
@@ -1200,27 +1204,31 @@
 
         saveTileMap()
 
-        modal.hide()
+        tileMapSettingsModal.hide()
       })
 
     {
-      const newTileMapModal = document.querySelector('#newTileMap')
-      const modal = new bootstrap.Modal(newTileMapModal)
+      const $newTileMapModal = document.querySelector('#newTileMap')
+      const newTileMapModal = new bootstrap.Modal($newTileMapModal)
 
-      newTileMapModal.addEventListener('show.bs.modal', function () {
-        newTileMapModal.querySelector('#newTileMapWidth').value =
+      function openCreateNewMapDialog() {
+        newTileMapModal.show()
+      }
+
+      $newTileMapModal.addEventListener('show.bs.modal', function () {
+        $newTileMapModal.querySelector('#newTileMapWidth').value =
           DEFAULT_MAP_WIDTH
-        newTileMapModal.querySelector('#newTileMapHeight').value =
+        $newTileMapModal.querySelector('#newTileMapHeight').value =
           DEFAULT_MAP_HEIGHT
       })
 
-      newTileMapModal.addEventListener('shown.bs.modal', function () {
-        const $width = newTileMapModal.querySelector('#newTileMapWidth')
+      $newTileMapModal.addEventListener('shown.bs.modal', function () {
+        const $width = $newTileMapModal.querySelector('#newTileMapWidth')
         $width.focus()
         $width.select()
       })
 
-      newTileMapModal
+      $newTileMapModal
         .querySelector('#newTileMapForm')
         .addEventListener('submit', function (event) {
           event.preventDefault()
@@ -1244,7 +1252,7 @@
 
           saveTileMap()
 
-          modal.hide()
+          newTileMapModal.hide()
         })
     }
 
@@ -1665,6 +1673,18 @@
       ) {
         event.preventDefault()
         loadTileSet()
+      } else if (
+        isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
+        event.key === 'n'
+      ) {
+        event.preventDefault()
+        openCreateNewMapDialog()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 'e'
+      ) {
+        event.preventDefault()
+        showEditMapDialog()
       } else if (event.code === 'Escape') {
         if (isInPasteMode) {
           event.preventDefault()
