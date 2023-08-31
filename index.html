@@ -1706,11 +1706,17 @@
         document.getElementById('importFromFile'),
         document.getElementById('exportToFile'),
         document.getElementById('undo'),
-        document.getElementById('showLoadTileSetDialogButton'),
       ]
 
       elementsWithShortcutInText.forEach(element => {
         element.textContent = element.textContent.replace(/Ctrl/g, 'Cmd')
+      })
+
+      const elementsWithShortcutInTitle = [
+        document.getElementById('showLoadTileSetDialogButton'),
+      ]
+
+      elementsWithShortcutInTitle.forEach(element => {
         element.title = element.title.replace(/Ctrl/g, 'Cmd')
       })
     }
