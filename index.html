@@ -106,6 +106,7 @@
       .tile-map-container {
         overflow: auto;
         background-color: #f1f1f1;
+        flex: 1 1 auto;
       }
 
       .tile-map {
@@ -286,7 +287,7 @@
     <div id="newTileMap" class="modal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
-          <form id="tilemapSettingsForm">
+          <form id="newTileMapForm">
             <div class="modal-header">
               <h5 class="modal-title">New tilemap</h5>
               <button
@@ -381,7 +382,11 @@
     crossorigin="anonymous"
   ></script>
   <script>
-    let level = 0
+    const levelSerialized = localStorage.getItem('level')
+    const DEFAULT_LEVEL = 0
+    let level = levelSerialized
+      ? JSON.parse(levelSerialized) ?? DEFAULT_LEVEL
+      : DEFAULT_LEVEL
     const isGridShownSerialized = localStorage.getItem('isGridShown')
     let activeTool = 'pen'
     let renderOnlyCurrentLevel = false
@@ -401,9 +406,11 @@
       : true
 
     const $level = document.querySelector('.level')
+    $level.value = level
 
     $level.addEventListener('change', function (event) {
       level = Number(event.target.value)
+      localStorage.setItem('level', level)
       renderTileMap()
     })
 
@@ -514,33 +521,15 @@
 
     const DEFAULT_TILE_WIDTH = 32
     const DEFAULT_TILE_HEIGHT = 32
-    const DEFAULT_MAP_WIDTH = 512
-    const DEFAULT_MAP_HEIGHT = 512
+    const DEFAULT_MAP_WIDTH = 16
+    const DEFAULT_MAP_HEIGHT = 16
     const tileMapSerialized = localStorage.getItem('tileMap')
     let tileMap = tileMapSerialized
       ? JSON.parse(tileMapSerialized)
-      : {
-          size: {
-            width: DEFAULT_MAP_WIDTH,
-            height: DEFAULT_MAP_HEIGHT,
-          },
-          tileSize: {
-            width: DEFAULT_TILE_WIDTH,
-            height: DEFAULT_TILE_HEIGHT,
-          },
-          tiles: [
-            new Array(
-              Math.ceil(DEFAULT_MAP_WIDTH / DEFAULT_TILE_WIDTH) *
-                Math.ceil(DEFAULT_MAP_HEIGHT / DEFAULT_TILE_HEIGHT)
-            ),
-          ],
-        }
+      : createTileMap({ width: DEFAULT_MAP_WIDTH, height: DEFAULT_MAP_HEIGHT })
 
     $canvas.width = tileMap.size.width
     $canvas.height = tileMap.size.height
-
-    level = tileMap.tiles.length - 1
-    $level.value = level
 
     $tileHover.style.width = tileMap.tileSize.width + 'px'
     $tileHover.style.height = tileMap.tileSize.height + 'px'
@@ -1133,19 +1122,19 @@
 
       newTileMapModal.addEventListener('show.bs.modal', function () {
         newTileMapModal.querySelector('#newTileMapWidth').value =
-          tileMap.size.width / tileMap.tileSize.width
+          DEFAULT_MAP_WIDTH
         newTileMapModal.querySelector('#newTileMapHeight').value =
-          tileMap.size.height / tileMap.tileSize.height
+          DEFAULT_MAP_HEIGHT
       })
 
       newTileMapModal.addEventListener('shown.bs.modal', function () {
-        const $width = newTileMapModal.querySelector('#tilemapSettingsWidth')
+        const $width = newTileMapModal.querySelector('#newTileMapWidth')
         $width.focus()
         $width.select()
       })
 
       newTileMapModal
-        .querySelector('#tilemapSettingsForm')
+        .querySelector('#newTileMapForm')
         .addEventListener('submit', function (event) {
           event.preventDefault()
 
@@ -1154,9 +1143,9 @@
           const width = parseInt(formData.get('width'), 10)
           const height = parseInt(formData.get('height'), 10)
 
-          resizeMap({
-            width: width * tileMap.tileSize.width,
-            height: height * tileMap.tileSize.height,
+          tileMap = createTileMap({
+            width,
+            height,
           })
 
           $canvas.width = tileMap.size.width
@@ -1168,6 +1157,20 @@
 
           modal.hide()
         })
+    }
+
+    function createTileMap({ width, height }) {
+      return {
+        size: {
+          width: width * DEFAULT_TILE_WIDTH,
+          height: height * DEFAULT_TILE_HEIGHT,
+        },
+        tileSize: {
+          width: DEFAULT_TILE_WIDTH,
+          height: DEFAULT_TILE_HEIGHT,
+        },
+        tiles: [new Array(width * height)],
+      }
     }
 
     function resizeMap({ width, height }) {
@@ -1311,7 +1314,11 @@
         if (renderOnlyCurrentLevel) {
           a(level)
         } else {
-          for (let level2 = 0; level2 < tile.length; level2++) {
+          for (
+            let level2 = 0;
+            level2 <= Math.max(tile.length - 1, level);
+            level2++
+          ) {
             a(level2)
           }
         }
