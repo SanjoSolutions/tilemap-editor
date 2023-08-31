@@ -1607,6 +1607,7 @@
     }
 
     window.addEventListener('keydown', function (event) {
+      console.log(event)
       if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'z') {
         event.preventDefault()
         undo()
@@ -1672,13 +1673,13 @@
         saveMap()
       } else if (
         isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
-        event.key === 'o'
+        event.code === 'KeyO'
       ) {
         event.preventDefault()
         loadTileSet()
       } else if (
         isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
-        event.key === 'n'
+        event.code === 'KeyN'
       ) {
         event.preventDefault()
         openCreateNewMapDialog()
