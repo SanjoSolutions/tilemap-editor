@@ -158,6 +158,7 @@
               <ul class="dropdown-menu">
                 <li>
                   <a
+                    id="showNewTileMapDialogButton"
                     class="dropdown-item"
                     href="#"
                     data-bs-toggle="modal"
@@ -167,6 +168,7 @@
                 </li>
                 <li>
                   <a
+                    id="showEditTileMapDialogButton"
                     class="dropdown-item"
                     href="#"
                     data-bs-toggle="modal"
@@ -217,6 +219,7 @@
         >
           <div class="btn-group" role="group" aria-label="Tools">
             <button
+              id="showLoadTileSetDialogButton"
               type="button"
               class="load-tileset-button btn btn-light"
               title="Load tileset (Ctrl + Alt + O)"
@@ -403,7 +406,16 @@
       ? JSON.parse(levelSerialized) ?? DEFAULT_LEVEL
       : DEFAULT_LEVEL
     const isGridShownSerialized = localStorage.getItem('isGridShown')
-    let activeTool = 'pen'
+    let activeTool = null
+    const menuIconBar = document.querySelector('.menu-icon-bar-main')
+    const penToolButton = menuIconBar.querySelector('.pen-tool-button')
+    const areaToolButton = menuIconBar.querySelector('.area-tool-button')
+    const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
+    const selectionToolButton = menuIconBar.querySelector(
+      '.selection-tool-button'
+    )
+    const $selectedArea = document.querySelector('.selected-area')
+    changeTool('pen')
     let renderOnlyCurrentLevel = false
 
     {
@@ -748,8 +760,6 @@
       }
     }
 
-    const $selectedArea = document.querySelector('.selected-area')
-
     function updateSelectedArea() {
       $selectedArea.style.display = 'block'
       $selectedArea.style.left = selectedTilesInTileMap.x + 'px'
@@ -1040,7 +1050,6 @@
       return width / tileMap.tileSize.width
     }
 
-    const menuIconBar = document.querySelector('.menu-icon-bar-main')
     const toggleGridButton = menuIconBar.querySelector('.toggle-grid-button')
 
     function updateToggleGridButton() {
@@ -1077,11 +1086,8 @@
       }
     }
 
-    const penToolButton = menuIconBar.querySelector('.pen-tool-button')
-
     function activatePenTool() {
-      activeTool = 'pen'
-      updateToolButtonStates()
+      changeTool('pen')
     }
 
     penToolButton.addEventListener('click', activatePenTool)
@@ -1090,11 +1096,8 @@
       updateToolButton(penToolButton, 'pen')
     }
 
-    const areaToolButton = menuIconBar.querySelector('.area-tool-button')
-
     function activateAreaTool() {
-      activeTool = 'area'
-      updateToolButtonStates()
+      changeTool('area')
     }
 
     areaToolButton.addEventListener('click', activateAreaTool)
@@ -1103,11 +1106,8 @@
       updateToolButton(areaToolButton, 'area')
     }
 
-    const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
-
     function activateFillTool() {
-      activeTool = 'fill'
-      updateToolButtonStates()
+      changeTool('fill')
     }
 
     fillToolButton.addEventListener('click', activateFillTool)
@@ -1116,13 +1116,16 @@
       updateToolButton(fillToolButton, 'fill')
     }
 
-    const selectionToolButton = menuIconBar.querySelector(
-      '.selection-tool-button'
-    )
-
     function activateSelectTool() {
-      activeTool = 'selection'
-      updateToolButtonStates()
+      changeTool('selection')
+    }
+
+    function changeTool(tool) {
+      if (tool !== activeTool) {
+        activeTool = tool
+        updateToolButtonStates()
+        $selectedArea.style.display = 'none'
+      }
     }
 
     selectionToolButton.addEventListener('click', activateSelectTool)
@@ -1696,6 +1699,22 @@
 
     const isOnMac = navigator.platform.indexOf('Mac') === 0
 
+    if (isOnMac) {
+      const elementsWithShortcutInText = [
+        document.getElementById('showNewTileMapDialogButton'),
+        document.getElementById('showEditTileMapDialogButton'),
+        document.getElementById('importFromFile'),
+        document.getElementById('exportToFile'),
+        document.getElementById('undo'),
+        document.getElementById('showLoadTileSetDialogButton'),
+      ]
+
+      elementsWithShortcutInText.forEach(element => {
+        element.textContent = element.textContent.replace(/Ctrl/g, 'Cmd')
+        element.title = element.title.replace(/Ctrl/g, 'Cmd')
+      })
+    }
+
     function isOnlyCtrlOrCmdModifierKeyPressed(event) {
       return (
         isCtrlOrCmdModifierKeyPressed(event) && !event.shiftKey && !event.altKey
@@ -1850,7 +1869,13 @@
       backUpMap()
 
       doSomethingWithCopiedTiles(function ({ row, column }, copiedTile) {
-        setMultiLayerTile({ row, column }, copiedTile)
+        if (hasBeenCopiedForOneLevel) {
+          if (copiedTile) {
+            setTile({ row, column }, copiedTile, level)
+          }
+        } else {
+          setMultiLayerTile({ row, column }, copiedTile)
+        }
       })
 
       isInPasteMode = false
@@ -1862,7 +1887,13 @@
       doSomethingWithCopiedTiles(function ({ row, column }, cutTile) {
         const x = column * tileMap.tileSize.width
         const y = row * tileMap.tileSize.height
-        renderTile({ x, y }, cutTile)
+        if (hasBeenCopiedForOneLevel) {
+          const replacements = []
+          replacements[level] = cutTile
+          renderTile({ x, y }, replacements)
+        } else {
+          renderTile({ x, y }, cutTile)
+        }
       })
 
       renderGrid()
