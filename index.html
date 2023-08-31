@@ -1607,7 +1607,6 @@
     }
 
     window.addEventListener('keydown', function (event) {
-      console.log(event)
       if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'z') {
         event.preventDefault()
         undo()
