@@ -107,6 +107,7 @@
         overflow: auto;
         background-color: #f1f1f1;
         flex: 1 1 auto;
+        position: relative;
       }
 
       .tile-map {
@@ -114,6 +115,12 @@
         background-color: white;
         border-bottom: 1px solid black;
         border-right: 1px solid black;
+      }
+
+      .selected-area {
+        border: 1px dashed gainsboro;
+        position: absolute;
+        pointer-events: none;
       }
     </style>
     <link
@@ -169,12 +176,12 @@
                 </li>
                 <li>
                   <a id="importFromFile" class="dropdown-item" href="#"
-                    >Import from file</a
+                    >Import from file (Ctrl + O)</a
                   >
                 </li>
                 <li>
                   <a id="exportToFile" class="dropdown-item" href="#"
-                    >Export to file</a
+                    >Export to file (Ctrl + S)</a
                   >
                 </li>
               </ul>
@@ -237,23 +244,30 @@
             <button
               type="button"
               class="pen-tool-button btn btn-light"
-              title="Pen tool"
+              title="Pen tool (P)"
             >
               <span class="material-symbols-outlined"> ink_pen </span>
             </button>
             <button
               type="button"
               class="area-tool-button btn btn-light"
-              title="Draw area tool"
+              title="Draw area tool (A)"
             >
               <span class="material-symbols-outlined"> rectangle </span>
             </button>
             <button
               type="button"
               class="fill-tool-button btn btn-light"
-              title="Fill tool"
+              title="Fill tool (F)"
             >
               <span class="material-symbols-outlined"> format_color_fill </span>
+            </button>
+            <button
+              type="button"
+              class="selection-tool-button btn btn-light"
+              title="Selection tool (S)"
+            >
+              <span class="material-symbols-outlined"> select </span>
             </button>
           </div>
 
@@ -261,14 +275,14 @@
             <button
               type="button"
               class="toggle-grid-button btn btn-light"
-              title="Toggle grid"
+              title="Toggle grid (G)"
             >
               <span class="material-symbols-outlined"> grid_on </span>
             </button>
             <button
               type="button"
               class="render-only-current-level-button btn btn-light"
-              title="Render only current level"
+              title="Render only current level (C)"
             >
               <span class="material-symbols-outlined">
                 check_indeterminate_small
@@ -279,8 +293,9 @@
 
         <div class="tile-map-container">
           <canvas class="tile-map" width="1024" height="1024"></canvas>
+          <div class="selected-area" style="display: none"></div>
         </div>
-        <input class="level" type="number" value="0" title="Level" />
+        <input class="level" type="number" value="0" title="Level" min="0" />
       </div>
     </div>
 
@@ -600,7 +615,7 @@
     function fill(event) {
       backUpMap()
       doAFillMethod(event, function (tile, selectedTile) {
-        setTile(tile, selectedTile)
+        setTileOnCurrentLevel(tile, selectedTile)
       })
       renderTileMap()
       saveTileMap()
@@ -729,6 +744,20 @@
         width: tileMap.tileSize.width,
         height: tileMap.tileSize.height,
       }
+
+      if (activeTool === 'selection') {
+        updateSelectedArea()
+      }
+    }
+
+    const $selectedArea = document.querySelector('.selected-area')
+
+    function updateSelectedArea() {
+      $selectedArea.style.display = 'block'
+      $selectedArea.style.left = selectedTilesInTileMap.x + 'px'
+      $selectedArea.style.top = selectedTilesInTileMap.y + 'px'
+      $selectedArea.style.width = selectedTilesInTileMap.width + 'px'
+      $selectedArea.style.height = selectedTilesInTileMap.height + 'px'
     }
 
     function preview9SliceMade() {
@@ -769,10 +798,17 @@
       })
     }
 
+    let lastPointerPosition = null
+
     $canvas.addEventListener('pointermove', function (event) {
-      if (selectedTiles) {
-        if (isPointerDownInTileMap) {
-          if (activeTool === 'area') {
+      lastPointerPosition = {
+        x: event.offsetX,
+        y: event.offsetY,
+      }
+
+      if (isPointerDownInTileMap) {
+        if (activeTool === 'area') {
+          if (selectedTiles) {
             expandSelectTilesInTileMap(event)
             if (seemsThat9SliceIsSelected()) {
               preview9SliceMade()
@@ -781,52 +817,60 @@
               previewArea()
               renderGrid()
             }
-          } else if (activeTool === 'pen') {
+          }
+        } else if (activeTool === 'pen') {
+          if (selectedTiles) {
             setTiles(event)
             renderGrid()
           }
-        } else {
-          if (activeTool === 'pen') {
-            const previousPreviewTiles = previewTiles
-            previewTiles = {
-              x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-              y: adjustToStep(event.offsetY, tileMap.tileSize.height),
-              width: selectedTiles.width,
-              height: selectedTiles.height,
+        } else if (activeTool === 'selection') {
+          expandSelectTilesInTileMap(event)
+          updateSelectedArea()
+        }
+      } else if (isInPasteMode) {
+        renderTileMap()
+        previewPaste()
+      } else if (selectedTiles) {
+        if (activeTool === 'pen') {
+          const previousPreviewTiles = previewTiles
+          previewTiles = {
+            x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+            y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+            width: selectedTiles.width,
+            height: selectedTiles.height,
+          }
+          if (
+            !previousPreviewTiles ||
+            areDifferent(previousPreviewTiles, previewTiles)
+          ) {
+            if (previousPreviewTiles) {
+              renderTiles(previousPreviewTiles)
             }
-            if (
-              !previousPreviewTiles ||
-              areDifferent(previousPreviewTiles, previewTiles)
-            ) {
-              if (previousPreviewTiles) {
-                renderTiles(previousPreviewTiles)
-              }
-              renderPreviewTiles()
-              renderGrid()
-            }
-          } else if (activeTool === 'area') {
-            const previousPreviewTiles = previewTiles
-            previewTiles = {
-              x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-              y: adjustToStep(event.offsetY, tileMap.tileSize.height),
-              width: tileMap.tileSize.width,
-              height: tileMap.tileSize.height,
-            }
-            if (
-              !previousPreviewTiles ||
-              areDifferent(previousPreviewTiles, previewTiles)
-            ) {
-              if (previousPreviewTiles) {
-                renderTiles(previousPreviewTiles)
-              }
-              renderPreviewTiles()
-              renderGrid()
-            }
-          } else if (activeTool === 'fill') {
-            renderTileMap()
-            previewFill(event)
+            renderPreviewTiles()
             renderGrid()
           }
+        } else if (activeTool === 'area') {
+          const previousPreviewTiles = previewTiles
+          previewTiles = {
+            x: adjustToStep(event.offsetX, tileMap.tileSize.width),
+            y: adjustToStep(event.offsetY, tileMap.tileSize.height),
+            width: tileMap.tileSize.width,
+            height: tileMap.tileSize.height,
+          }
+          if (
+            !previousPreviewTiles ||
+            areDifferent(previousPreviewTiles, previewTiles)
+          ) {
+            if (previousPreviewTiles) {
+              renderTiles(previousPreviewTiles)
+            }
+            renderPreviewTiles()
+            renderGrid()
+          }
+        } else if (activeTool === 'fill') {
+          renderTileMap()
+          previewFill(event)
+          renderGrid()
         }
       }
     })
@@ -870,7 +914,15 @@
       }
 
       firstPointTileMap = null
-      selectedTilesInTileMap = null
+      if (activeTool !== 'selection') {
+        selectedTilesInTileMap = null
+      }
+    })
+
+    $canvas.addEventListener('pointerup', function (event) {
+      if (isInPasteMode) {
+        paste(event)
+      }
     })
 
     function putSelectedTilesOnMap() {
@@ -894,7 +946,7 @@
             (column % numberOfColumns) * tileMap.tileSize.width,
           y: selectedTiles.y + (row % numberOfRows) * tileMap.tileSize.height,
         }
-        setTile(
+        setTileOnCurrentLevel(
           { row: baseRow + row, column: baseColumn + column },
           selectedTile
         )
@@ -914,7 +966,7 @@
         tileMap.tileSize.width
 
       do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
-        setTile(
+        setTileOnCurrentLevel(
           {
             row: baseRow + row,
             column: baseColumn + column,
@@ -922,6 +974,8 @@
           tile
         )
       })
+
+      saveTileMap()
     }
 
     function doSomethingWithSelectedTilesInTileMap(fn) {
@@ -1001,17 +1055,20 @@
 
     updateToggleGridButton()
 
-    toggleGridButton.addEventListener('click', function () {
+    function toggleGrid() {
       isGridShown = !isGridShown
       updateToggleGridButton()
       localStorage.setItem('isGridShown', isGridShown)
       renderTileMap()
-    })
+    }
+
+    toggleGridButton.addEventListener('click', toggleGrid)
 
     function updateToolButtonStates() {
       updatePenToolButton()
       updateAreaToolButton()
       updateFillToolButton()
+      updateSelectionToolButton()
     }
 
     function updateToolButton(button, tool) {
@@ -1023,33 +1080,57 @@
     }
 
     const penToolButton = menuIconBar.querySelector('.pen-tool-button')
-    penToolButton.addEventListener('click', function () {
+
+    function activatePenTool() {
       activeTool = 'pen'
       updateToolButtonStates()
-    })
+    }
+
+    penToolButton.addEventListener('click', activatePenTool)
 
     function updatePenToolButton() {
       updateToolButton(penToolButton, 'pen')
     }
 
     const areaToolButton = menuIconBar.querySelector('.area-tool-button')
-    areaToolButton.addEventListener('click', function () {
+
+    function activateAreaTool() {
       activeTool = 'area'
       updateToolButtonStates()
-    })
+    }
+
+    areaToolButton.addEventListener('click', activateAreaTool)
 
     function updateAreaToolButton() {
       updateToolButton(areaToolButton, 'area')
     }
 
     const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
-    fillToolButton.addEventListener('click', function () {
+
+    function activateFillTool() {
       activeTool = 'fill'
       updateToolButtonStates()
-    })
+    }
+
+    fillToolButton.addEventListener('click', activateFillTool)
 
     function updateFillToolButton() {
       updateToolButton(fillToolButton, 'fill')
+    }
+
+    const selectionToolButton = menuIconBar.querySelector(
+      '.selection-tool-button'
+    )
+
+    function activateSelectTool() {
+      activeTool = 'selection'
+      updateToolButtonStates()
+    }
+
+    selectionToolButton.addEventListener('click', activateSelectTool)
+
+    function updateSelectionToolButton() {
+      updateToolButton(selectionToolButton, 'selection')
     }
 
     updateToolButtonStates()
@@ -1057,11 +1138,17 @@
     const renderOnlyCurrentLevelButton = document.querySelector(
       '.render-only-current-level-button'
     )
-    renderOnlyCurrentLevelButton.addEventListener('click', function () {
+
+    function toggleRenderOnlyCurrentLevel() {
       renderOnlyCurrentLevel = !renderOnlyCurrentLevel
       updateRenderOnlyCurrentLevelButton()
       renderTileMap()
-    })
+    }
+
+    renderOnlyCurrentLevelButton.addEventListener(
+      'click',
+      toggleRenderOnlyCurrentLevel
+    )
 
     function updateRenderOnlyCurrentLevelButton() {
       if (renderOnlyCurrentLevel) {
@@ -1151,6 +1238,8 @@
           $canvas.width = tileMap.size.width
           $canvas.height = tileMap.size.height
 
+          localStorage.removeItem('openFileName')
+
           renderTileMap()
 
           saveTileMap()
@@ -1224,7 +1313,7 @@
             y: selectedTiles.y + y,
           }
 
-          const hasTileBeenSet = setTile({ row, column }, tile)
+          const hasTileBeenSet = setTileOnCurrentLevel({ row, column }, tile)
           somethingHasChanged = somethingHasChanged || hasTileBeenSet
 
           const position = { x: baseX + x, y: baseY + y }
@@ -1245,14 +1334,17 @@
       )
     }
 
-    function setTile({ row, column }, tile) {
+    function setTileOnCurrentLevel({ row, column }, tile) {
+      return setTile({ row, column }, tile, level)
+    }
+
+    function setTile({ row, column }, tile, level) {
       const index = calculateIndex({ row, column })
       const previousTile = tileMap.tiles[level] && tileMap.tiles[level][index]
       if (!previousTile || areDifferent(previousTile, tile)) {
         if (!tileMap.tiles[level]) {
           tileMap.tiles[level] = new Array(
-            Math.ceil(tileMap.size.width / tileMap.tileSize.width) *
-              Math.ceil(tileMap.size.height / tileMap.tileSize.height)
+            retrieveNumberOfColumns(tileMap) * retrieveNumberOfRows(tileMap)
           )
         }
         tileMap.tiles[level][index] = tile
@@ -1260,6 +1352,25 @@
       } else {
         return false
       }
+    }
+
+    function setMultiLayerTile({ row, column }, multiLayerTile) {
+      let hasSomethingChanged = false
+      for (let level = 0; level < multiLayerTile.length; level++) {
+        const tile = multiLayerTile[level]
+        const hasChanged = setTile({ row, column }, tile, level)
+        hasSomethingChanged ||= hasChanged
+      }
+
+      return hasSomethingChanged
+    }
+
+    function retrieveNumberOfRows(tileMap) {
+      return Math.ceil(tileMap.size.height / tileMap.tileSize.height)
+    }
+
+    function retrieveNumberOfColumns(tileMap) {
+      return Math.ceil(tileMap.size.width / tileMap.tileSize.width)
     }
 
     function renderTiles(area) {
@@ -1430,45 +1541,166 @@
       types,
     }
 
+    const ABORT_ERROR = 20
+
     async function loadMap() {
-      const fileHandles = await window.showOpenFilePicker(filePickerBaseOptions)
-      const fileHandle = fileHandles[0]
-      const file = await fileHandle.getFile()
-      const content = await file.text()
-      tileMap = JSON.parse(content)
-      level = tileMap.tiles.length - 1
-      $level.value = level
+      let fileHandles
+      try {
+        fileHandles = await window.showOpenFilePicker(filePickerBaseOptions)
+      } catch (error) {
+        if (error.code !== ABORT_ERROR) {
+          throw error
+        }
+      }
+      if (fileHandles) {
+        const fileHandle = fileHandles[0]
+        localStorage.setItem('openFileName', fileHandle.name)
+        const file = await fileHandle.getFile()
+        const content = await file.text()
+        tileMap = JSON.parse(content)
+        level = tileMap.tiles.length - 1
+        $level.value = level
 
-      $canvas.width = tileMap.size.width
-      $canvas.height = tileMap.size.height
+        $canvas.width = tileMap.size.width
+        $canvas.height = tileMap.size.height
 
-      $tileHover.style.width = tileMap.tileSize.width + 'px'
-      $tileHover.style.height = tileMap.tileSize.height + 'px'
+        $tileHover.style.width = tileMap.tileSize.width + 'px'
+        $tileHover.style.height = tileMap.tileSize.height + 'px'
 
-      $tileSelected.style.width = tileMap.tileSize.width + 'px'
-      $tileSelected.style.height = tileMap.tileSize.height + 'px'
+        $tileSelected.style.width = tileMap.tileSize.width + 'px'
+        $tileSelected.style.height = tileMap.tileSize.height + 'px'
 
-      renderTileMap()
+        renderTileMap()
 
-      saveTileMap()
+        saveTileMap()
+      }
     }
 
     async function saveMap() {
-      const handle = await window.showSaveFilePicker({
-        ...filePickerBaseOptions,
-        suggestedName: 'map.json',
-      })
-      const stream = await handle.createWritable()
-      await stream.write(JSON.stringify(tileMap, null, 2))
-      await stream.close()
+      let handle
+      try {
+        handle = await window.showSaveFilePicker({
+          ...filePickerBaseOptions,
+          suggestedName: localStorage.getItem('openFileName') || 'map.json',
+        })
+      } catch (error) {
+        if (error.code !== ABORT_ERROR) {
+          throw error
+        }
+      }
+      if (handle) {
+        const stream = await handle.createWritable()
+        await stream.write(JSON.stringify(tileMap, null, 2))
+        await stream.close()
+      }
     }
 
     window.addEventListener('keydown', function (event) {
-      if (event.ctrlKey && event.key === 'z') {
+      if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'z') {
         event.preventDefault()
         undo()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 'c'
+      ) {
+        event.preventDefault()
+        copy()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 'x'
+      ) {
+        event.preventDefault()
+        cut()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 'v'
+      ) {
+        event.preventDefault()
+        startPasting()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.code === 'ArrowUp'
+      ) {
+        event.preventDefault()
+        incrementLevel()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.code === 'ArrowDown'
+      ) {
+        event.preventDefault()
+        decrementLevel()
+      } else if (isNoModifierKeyPressed(event) && event.key === 'f') {
+        event.preventDefault()
+        activateFillTool()
+      } else if (isNoModifierKeyPressed(event) && event.key === 'p') {
+        event.preventDefault()
+        activatePenTool()
+      } else if (isNoModifierKeyPressed(event) && event.key === 'a') {
+        event.preventDefault()
+        activateAreaTool()
+      } else if (isNoModifierKeyPressed(event) && event.key === 's') {
+        event.preventDefault()
+        activateSelectTool()
+      } else if (isNoModifierKeyPressed(event) && event.key === 'g') {
+        event.preventDefault()
+        toggleGrid()
+      } else if (isNoModifierKeyPressed(event) && event.key === 'c') {
+        event.preventDefault()
+        toggleRenderOnlyCurrentLevel()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 'o'
+      ) {
+        event.preventDefault()
+        loadMap()
+      } else if (
+        isOnlyCtrlOrCmdModifierKeyPressed(event) &&
+        event.key === 's'
+      ) {
+        event.preventDefault()
+        saveMap()
+      } else if (event.code === 'Escape') {
+        if (isInPasteMode) {
+          event.preventDefault()
+          isInPasteMode = false
+          renderTileMap()
+        }
       }
     })
+
+    const isOnMac = navigator.platform.indexOf('Mac') === 0
+
+    function isOnlyCtrlOrCmdModifierKeyPressed(event) {
+      return (
+        isCtrlOrCmdModifierKeyPressed(event) && !event.shiftKey && !event.altKey
+      )
+    }
+
+    function isCtrlOrCmdModifierKeyPressed(event) {
+      return isOnMac ? event.metaKey : event.ctrlKey
+    }
+
+    function isNoModifierKeyPressed(event) {
+      return (
+        !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey
+      )
+    }
+
+    function incrementLevel() {
+      setLevel(level + 1)
+    }
+
+    function decrementLevel() {
+      if (level > 0) {
+        setLevel(level - 1)
+      }
+    }
+
+    function setLevel(value) {
+      level = value
+      $level.value = level
+      renderTileMap()
+    }
 
     function undo() {
       const lastBackup = backups.pop()
@@ -1484,6 +1716,185 @@
         renderTileMap()
         saveTileMap()
       }
+    }
+
+    let copiedTiles = null
+    let copiedArea = null
+    let hasBeenCopiedForOneLevel = null
+    let isInPasteMode = false
+
+    function copy() {
+      if (activeTool === 'selection') {
+        copiedArea = determineCutArea()
+        copiedTiles = new Array(tileMap.tiles.length)
+        if (renderOnlyCurrentLevel) {
+          copiedTiles = copyArea(tileMap.tiles[level], copiedArea)
+          hasBeenCopiedForOneLevel = true
+        } else {
+          for (let level = 0; level < tileMap.tiles.length; level++) {
+            copiedTiles[level] = copyArea(tileMap.tiles[level], copiedArea)
+          }
+          hasBeenCopiedForOneLevel = false
+        }
+      }
+    }
+
+    function cut() {
+      if (activeTool === 'selection') {
+        backUpMap()
+        copiedArea = determineCutArea()
+        copiedTiles = new Array(tileMap.tiles.length)
+        if (renderOnlyCurrentLevel) {
+          copiedTiles = copyArea(tileMap.tiles[level], copiedArea)
+          hasBeenCopiedForOneLevel = true
+          removeTiles(tileMap.tiles[level], copiedArea)
+        } else {
+          for (let level = 0; level < tileMap.tiles.length; level++) {
+            copiedTiles[level] = copyArea(tileMap.tiles[level], copiedArea)
+          }
+          hasBeenCopiedForOneLevel = false
+          removeTilesOnAllLevels(tileMap.tiles, copiedArea)
+        }
+        renderTileMap()
+        saveTileMap()
+      }
+    }
+
+    function determineCutArea() {
+      return {
+        from: {
+          row: Math.ceil(selectedTilesInTileMap.y / tileMap.tileSize.height),
+          column: Math.ceil(selectedTilesInTileMap.x / tileMap.tileSize.width),
+        },
+        to: {
+          row: Math.ceil(
+            (selectedTilesInTileMap.y + selectedTilesInTileMap.height) /
+              tileMap.tileSize.height
+          ),
+          column: Math.ceil(
+            (selectedTilesInTileMap.x + selectedTilesInTileMap.width) /
+              tileMap.tileSize.width
+          ),
+        },
+      }
+    }
+
+    function removeTilesOnAllLevels(tileLayers, area) {
+      for (let level = 0; level < tileMap.tiles.length; level++) {
+        removeTiles(tileMap.tiles[level], area)
+      }
+    }
+
+    function removeTiles(tiles, area) {
+      const numberOfRows = area.to.row - area.from.row
+      const numberOfColumns = area.to.column - area.from.column
+      const numberOfColumnsInTileMap = Math.ceil(
+        tileMap.size.width / tileMap.tileSize.width
+      )
+      for (let rowOffset = 0; rowOffset < numberOfRows; rowOffset++) {
+        for (
+          let columnOffset = 0;
+          columnOffset < numberOfColumns;
+          columnOffset++
+        ) {
+          const index =
+            (area.from.row + rowOffset) * numberOfColumnsInTileMap +
+            area.from.column +
+            columnOffset
+          tiles[index] = null
+        }
+      }
+    }
+
+    function startPasting() {
+      if (copiedTiles && copiedArea) {
+        isInPasteMode = true
+
+        previewPaste()
+      }
+    }
+
+    function paste(event) {
+      backUpMap()
+
+      doSomethingWithCopiedTiles(function ({ row, column }, copiedTile) {
+        setMultiLayerTile({ row, column }, copiedTile)
+      })
+
+      isInPasteMode = false
+      renderTileMap()
+      saveTileMap()
+    }
+
+    function previewPaste() {
+      doSomethingWithCopiedTiles(function ({ row, column }, cutTile) {
+        const x = column * tileMap.tileSize.width
+        const y = row * tileMap.tileSize.height
+        renderTile({ x, y }, cutTile)
+      })
+
+      renderGrid()
+    }
+
+    function doSomethingWithCopiedTiles(fn) {
+      const numberOfRowsCut = copiedArea.to.row - copiedArea.from.row
+      const numberOfColumnsCut = copiedArea.to.column - copiedArea.from.column
+      const fromRow =
+        determineRowFromCoordinate(lastPointerPosition.y) -
+        (Math.ceil(0.5 * numberOfRowsCut) - 1)
+      const fromColumn =
+        determineColumnFromCoordinate(lastPointerPosition.x) -
+        (Math.ceil(0.5 * numberOfColumnsCut) - 1)
+      for (let rowOffset = 0; rowOffset < numberOfRowsCut; rowOffset++) {
+        for (
+          let columnOffset = 0;
+          columnOffset < numberOfColumnsCut;
+          columnOffset++
+        ) {
+          const index = rowOffset * numberOfColumnsCut + columnOffset
+          let copiedTile
+          if (hasBeenCopiedForOneLevel) {
+            copiedTile = copiedTiles[index]
+          } else {
+            copiedTile = new Array(copiedTiles.length)
+            for (let level = 0; level < copiedTiles.length; level++) {
+              copiedTile[level] = copiedTiles[level][index]
+            }
+          }
+
+          const row = fromRow + rowOffset
+          const column = fromColumn + columnOffset
+
+          fn({ row, column }, copiedTile)
+        }
+      }
+    }
+
+    function determineRowFromCoordinate(y) {
+      return adjustToStep(y, tileMap.tileSize.height) / tileMap.tileSize.height
+    }
+
+    function determineColumnFromCoordinate(x) {
+      return adjustToStep(x, tileMap.tileSize.width) / tileMap.tileSize.width
+    }
+
+    function copyArea(tilesLayer, area) {
+      const numberOfRows = area.to.row - area.from.row
+      const numberOfColumns = area.to.column - area.from.column
+      const tiles = new Array(numberOfRows * numberOfColumns)
+      for (let row = 0; row < numberOfRows; row++) {
+        const startIndex = row * numberOfColumns
+        for (let column = 0; column < numberOfColumns; column++) {
+          tiles[startIndex + column] =
+            tilesLayer[
+              (area.from.row + row) *
+                Math.ceil(tileMap.size.width / tileMap.tileSize.width) +
+                area.from.column +
+                column
+            ]
+        }
+      }
+      return tiles
     }
 
     document
