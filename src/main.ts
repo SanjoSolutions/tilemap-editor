@@ -1289,7 +1289,7 @@ async function loadTileMap() {
           description: "Map",
           accept: {
             "text/json": [".json"],
-            "application/xml": [".tmx"],
+            // "application/xml": [".tmx"],
           },
         },
       ],
