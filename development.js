@@ -1,13 +1,14 @@
-import * as esbuild from 'esbuild'
-import { config } from './esbuild.config.js'
+import * as esbuild from "esbuild"
+import { config } from "./esbuild.config.js"
 
 const context = await esbuild.context({
   ...config,
   define: {
-    'window.IS_DEVELOPMENT': 'true',
+    "window.IS_DEVELOPMENT": "true",
   },
 })
 
 await context.watch()
-await context.serve({ port: 80, servedir: 'public' })
-console.log('Running on http://localhost.')
+const port = 8000
+await context.serve({ port, servedir: "public" })
+console.log(`Running on http://localhost:${port}.`)
