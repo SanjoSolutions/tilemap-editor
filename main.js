@@ -1813,3 +1813,12 @@ function removeTileSet(id) {
     isModalOpen = false
   })
 }
+
+function showMapFullScreen() {
+  $sidebar.classList.add('d-none')
+  document.querySelector('.app-navbar').classList.add('d-none')
+  document.querySelector('.menu-icon-bar-main').classList.add('d-none')
+  document.querySelector(
+    '#toggleShowFullScreen material-symbols-outlined'
+  ).textContent = 'close_fullscreen'
+}
