@@ -1455,14 +1455,6 @@ if (isOnMac) {
   elementsWithShortcutInText.forEach((element) => {
     element.textContent = element.textContent.replace(/Ctrl/g, "Cmd")
   })
-
-  const elementsWithShortcutInTitle = [
-    document.getElementById("showLoadTileSetDialogButton"),
-  ]
-
-  elementsWithShortcutInTitle.forEach((element) => {
-    element.title = element.title.replace(/Ctrl/g, "Cmd")
-  })
 }
 
 function isOnlyCtrlOrCmdModifierKeyPressed(event) {
