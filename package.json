@@ -3,7 +3,8 @@
   "scripts": {
     "development": "node development.js",
     "build": "node build.js",
-    "test": "jest"
+    "test": "jest",
+    "serve": "python3 -m http.server 80"
   },
   "dependencies": {
     "bootstrap": "^5.3.1",
