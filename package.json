@@ -4,7 +4,7 @@
     "development": "node development.js",
     "build": "node build.js",
     "test": "jest",
-    "serve": "python3 -m http.server 80"
+    "serve": "python3 -m http.server 8000"
   },
   "dependencies": {
     "bootstrap": "^5.3.1",

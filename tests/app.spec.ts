@@ -4,7 +4,7 @@ import type { Position } from "../src/Position.js"
 
 test.describe("pen tool", () => {
   test("can draw a single selected tile", async ({ page }) => {
-    await page.goto("http://localhost")
+    await goToApp(page)
     await selectFirstTile(page)
     await page.locator(".pen-tool-button").click()
     const tileMap = retrieveTileMap(page)
@@ -15,7 +15,7 @@ test.describe("pen tool", () => {
 
 test.describe("area tool", () => {
   test("can draw area", async ({ page }) => {
-    await page.goto("http://localhost/")
+    await goToApp(page)
     await selectFirstTile(page)
     drawArea(
       page,
@@ -35,7 +35,7 @@ test.describe("area tool", () => {
 
 test.describe("fill tool", () => {
   test("can fill", async ({ page }) => {
-    await page.goto("http://localhost/")
+    await goToApp(page)
     await page.getByRole("button", { name: "format_color_fill" }).click()
     await selectFirstTile(page)
     const tileMap = retrieveTileMap(page)
@@ -48,7 +48,7 @@ test.describe("fill tool", () => {
 
 test.describe("cut and paste", () => {
   test("can cut and paste", async ({ page }) => {
-    await page.goto("http://localhost/")
+    await goToApp(page)
     await selectFirstTile(page)
     await drawArea(
       page,
@@ -79,6 +79,10 @@ test.describe("cut and paste", () => {
     await expect(tileMap).toHaveScreenshot()
   })
 })
+
+async function goToApp(page: Page): Promise<void> {
+  await page.goto("http://localhost:8000")
+}
 
 async function selectFirstTile(page: Page): Promise<void> {
   await page.locator(".tile-set").click({
