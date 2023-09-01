@@ -1,10 +1,10 @@
-import { polyfillNode } from 'esbuild-plugin-polyfill-node'
+import { polyfillNode } from "esbuild-plugin-polyfill-node"
 
 export const config = {
-  entryPoints: ['main.js'],
+  entryPoints: ["src/main.ts"],
   bundle: true,
-  outdir: 'public',
+  outdir: "public",
   plugins: [polyfillNode()],
-  format: 'esm',
-  target: ['chrome86', 'edge86', 'opera72'],
+  format: "esm",
+  target: ["chrome116"],
 }

@@ -1,109 +1,136 @@
-import { XMLParser } from 'fast-xml-parser'
-import * as path from 'node:path'
+import * as bootstrap from "bootstrap"
+import { XMLParser } from "fast-xml-parser"
+import * as path from "node:path"
+import type { Area } from "./Area.js"
+import type { CellPosition } from "./CellPosition.js"
+import type { FromToArea } from "./FromToArea.js"
+import type { Level } from "./Level.js"
+import type { MultiLayerTile } from "./MultiLayerTile.js"
+import type { Point } from "./Point.js"
+import type { Position } from "./Position.js"
+import type { Tile } from "./Tile.js"
+import type { TileMap } from "./TileMap.js"
+import { App } from "./lib.js"
 
 if (window.IS_DEVELOPMENT) {
-  new EventSource('/esbuild').addEventListener('change', () =>
-    location.reload()
+  new EventSource("/esbuild").addEventListener("change", () =>
+    location.reload(),
   )
 }
 
-const levelSerialized = localStorage.getItem('level')
-const DEFAULT_LEVEL = 0
-let level = levelSerialized
+const app = new App()
+const levelSerialized = localStorage.getItem("level")
+const DEFAULT_LEVEL: Level = 0
+let level: Level = levelSerialized
   ? JSON.parse(levelSerialized) ?? DEFAULT_LEVEL
   : DEFAULT_LEVEL
-const isGridShownSerialized = localStorage.getItem('isGridShown')
-let activeTool = null
-let isModalOpen = false
-const menuIconBar = document.querySelector('.menu-icon-bar-main')
-const penToolButton = menuIconBar.querySelector('.pen-tool-button')
-const areaToolButton = menuIconBar.querySelector('.area-tool-button')
-const fillToolButton = menuIconBar.querySelector('.fill-tool-button')
-const selectionToolButton = menuIconBar.querySelector('.selection-tool-button')
-const $selectedArea = document.querySelector('.selected-area')
-changeTool('pen')
-let renderOnlyCurrentLevel = false
+const isGridShownSerialized = localStorage.getItem("isGridShown")
+let isModalOpen: boolean = false
+const menuIconBar = document.querySelector(
+  ".menu-icon-bar-main",
+) as HTMLDivElement
+const penToolButton = menuIconBar.querySelector(
+  ".pen-tool-button",
+) as HTMLButtonElement
+const areaToolButton = menuIconBar.querySelector(
+  ".area-tool-button",
+) as HTMLButtonElement
+const fillToolButton = menuIconBar.querySelector(
+  ".fill-tool-button",
+) as HTMLButtonElement
+const selectionToolButton = menuIconBar.querySelector(
+  ".selection-tool-button",
+) as HTMLButtonElement
+const $selectedArea = document.querySelector(".selected-area") as HTMLDivElement
+changeTool("pen")
+let renderOnlyCurrentLevel: boolean = false
 
-let isGridShown = isGridShownSerialized
+let isGridShown: boolean = isGridShownSerialized
   ? JSON.parse(isGridShownSerialized)
   : true
 
-const $level = document.querySelector('.level')
-$level.value = level
+const $level = document.querySelector(".level") as HTMLInputElement
+$level.value = String(level)
 
-$level.addEventListener('change', function (event) {
-  level = Number(event.target.value)
-  localStorage.setItem('level', level)
+$level.addEventListener("change", function (event) {
+  level = Number((event.target as HTMLInputElement).value)
+  localStorage.setItem("level", String(level))
   renderTileMap()
 })
 
-const $sidebar = document.querySelector('.sidebar')
+const $sidebar = document.querySelector(".sidebar") as HTMLDivElement
 
 {
-  const sideBarWidth = localStorage.getItem('sidebarWidth')
+  const sideBarWidth = localStorage.getItem("sidebarWidth")
   if (sideBarWidth) {
     $sidebar.style.flexBasis = sideBarWidth
   }
 }
 
 {
-  let offset = null
-  const $sliderDragArea = document.querySelector('.slider__drag-area')
+  let offset: number | null = null
+  const $sliderDragArea = document.querySelector(
+    ".slider__drag-area",
+  ) as HTMLDivElement
   let isSliding = false
-  $sliderDragArea.addEventListener('pointerdown', function (event) {
+  $sliderDragArea.addEventListener("pointerdown", function (event) {
     event.preventDefault()
     isSliding = true
     offset = event.offsetX - (17 - 1) / 2
   })
-  window.addEventListener('pointermove', function (event) {
+  window.addEventListener("pointermove", function (event) {
     if (isSliding) {
       event.preventDefault()
-      $sidebar.style.flexBasis = event.clientX - offset + 'px'
+      $sidebar.style.flexBasis = event.clientX - offset! + "px"
     }
   })
-  window.addEventListener('pointerup', function () {
+  window.addEventListener("pointerup", function () {
     isSliding = false
     offset = null
-    localStorage.setItem('sidebarWidth', $sidebar.style.flexBasis)
+    localStorage.setItem("sidebarWidth", $sidebar.style.flexBasis)
   })
 }
 
-const $tileHover = document.querySelector('.tile-hover')
-const $tileSet = document.querySelector('.tile-set')
-$tileSet.addEventListener('pointermove', function (event) {
-  $tileHover.style.display = 'block'
+const $tileHover = document.querySelector(".tile-hover") as HTMLDivElement
+const $tileSet = document.querySelector(".tile-set") as HTMLImageElement
+$tileSet.addEventListener("pointermove", function (event) {
+  $tileHover.style.display = "block"
   $tileHover.style.left =
-    adjustToStep(event.offsetX, tileMap.tileSize.width) + 'px'
+    adjustToStep(event.offsetX, tileMap.tileSize.width) + "px"
   $tileHover.style.top =
-    adjustToStep(event.offsetY, tileMap.tileSize.height) + 'px'
+    adjustToStep(event.offsetY, tileMap.tileSize.height) + "px"
 })
 
-const $tileSelected = document.querySelector('.tile-selected')
+const $tileSelected = document.querySelector(".tile-selected") as HTMLDivElement
 
 let isPointerDownInTileSet = false
 
-$tileSet.addEventListener('pointerdown', function (event) {
+$tileSet.addEventListener("pointerdown", function (event) {
   event.preventDefault()
   isPointerDownInTileSet = true
   selectTile(event)
 })
 
-$tileSet.addEventListener('pointermove', function (event) {
+$tileSet.addEventListener("pointermove", function (event) {
   if (isPointerDownInTileSet) {
     expandSelectTiles(event)
   }
 })
 
-$tileSet.addEventListener('mouseleave', function () {
-  $tileHover.style.display = 'none'
+$tileSet.addEventListener("mouseleave", function () {
+  $tileHover.style.display = "none"
 })
 
-let firstPoint = null
-let selectedTiles = null
+let firstPoint: Point | null = null
+let selectedTiles: Area | null = null
 
 function selectTile(event) {
-  const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
-  const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+  selectTileSetTile(event.offsetX, event.offsetY)
+}
+
+export function selectTileSetTile(x: number, y: number): void {
+  x = adjustToStep(x, tileMap.tileSize.width)
+  y = adjustToStep(y, tileMap.tileSize.height)
   firstPoint = {
     x,
     y,
@@ -114,29 +141,33 @@ function selectTile(event) {
     width: tileMap.tileSize.width,
     height: tileMap.tileSize.height,
   }
-  $tileSelected.style.display = 'block'
-  $tileSelected.style.left = selectedTiles.x + 'px'
-  $tileSelected.style.top = selectedTiles.y + 'px'
-  $tileSelected.style.width = selectedTiles.width + 'px'
-  $tileSelected.style.height = selectedTiles.height + 'px'
+  $tileSelected.style.display = "block"
+  $tileSelected.style.left = selectedTiles.x + "px"
+  $tileSelected.style.top = selectedTiles.y + "px"
+  $tileSelected.style.width = selectedTiles.width + "px"
+  $tileSelected.style.height = selectedTiles.height + "px"
 }
 
 function expandSelectTiles(event) {
-  const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
-  const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
-  selectedTiles = {
-    x: Math.min(firstPoint.x, x),
-    y: Math.min(firstPoint.y, y),
-    width: Math.abs(x - firstPoint.x) + tileMap.tileSize.width,
-    height: Math.abs(y - firstPoint.y) + tileMap.tileSize.height,
+  if (firstPoint) {
+    const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
+    const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+    selectedTiles = {
+      x: Math.min(firstPoint.x, x),
+      y: Math.min(firstPoint.y, y),
+      width: Math.abs(x - firstPoint.x) + tileMap.tileSize.width,
+      height: Math.abs(y - firstPoint.y) + tileMap.tileSize.height,
+    }
+    $tileSelected.style.left = selectedTiles.x + "px"
+    $tileSelected.style.top = selectedTiles.y + "px"
+    $tileSelected.style.width = selectedTiles.width + "px"
+    $tileSelected.style.height = selectedTiles.height + "px"
+  } else {
+    throw new Error("firstPoint is null.")
   }
-  $tileSelected.style.left = selectedTiles.x + 'px'
-  $tileSelected.style.top = selectedTiles.y + 'px'
-  $tileSelected.style.width = selectedTiles.width + 'px'
-  $tileSelected.style.height = selectedTiles.height + 'px'
 }
 
-window.addEventListener('pointerup', function () {
+window.addEventListener("pointerup", function () {
   isPointerDownInTileSet = false
 })
 
@@ -144,8 +175,8 @@ function adjustToStep(value, step) {
   return Math.floor(value / step) * step
 }
 
-const $canvas = document.querySelector('.tile-map')
-const context = $canvas.getContext('2d')
+const $canvas = document.querySelector(".tile-map") as HTMLCanvasElement
+const context = $canvas.getContext("2d")
 
 let previewTiles = null
 
@@ -153,52 +184,57 @@ const DEFAULT_TILE_WIDTH = 32
 const DEFAULT_TILE_HEIGHT = 32
 const DEFAULT_MAP_WIDTH = 16
 const DEFAULT_MAP_HEIGHT = 16
-const tileMapSerialized = localStorage.getItem('tileMap')
-let tileMap = tileMapSerialized
+const tileMapSerialized = localStorage.getItem("tileMap")
+let tileMap: TileMap = tileMapSerialized
   ? migrateTileMap(JSON.parse(tileMapSerialized))
-  : createTileMap({ width: DEFAULT_MAP_WIDTH, height: DEFAULT_MAP_HEIGHT })
+  : await createTileMap({
+      width: DEFAULT_MAP_WIDTH,
+      height: DEFAULT_MAP_HEIGHT,
+    })
 
 let tileSets = {}
 
 for (const [id, tileSet] of Object.entries(tileMap.tileSets)) {
-  createImageFromDataURL(tileSet.content).then(image => {
+  createImageFromDataURL(tileSet.content).then((image) => {
     tileSets[id] = image
     renderTileMap()
   })
 }
 
-const $tileSetSelect = document.getElementById('tileSetSelect')
+const $tileSetSelect = document.getElementById(
+  "tileSetSelect",
+) as HTMLSelectElement
 
 function addOptionToTileSetSelect(id, tileSet) {
-  const option = document.createElement('option')
+  const option = document.createElement("option")
   option.value = id
   option.textContent = tileSet.name
   $tileSetSelect.appendChild(option)
 }
 
-$tileSetSelect.innerHTML = ''
+$tileSetSelect.innerHTML = ""
 for (const [id, tileSet] of Object.entries(tileMap.tileSets)) {
   addOptionToTileSetSelect(id, tileSet)
 }
 
 {
-  const selectedTileSetSerialized = localStorage.getItem('selectedTileSet')
-  if (selectedTileSetSerialized) {
-    const selectedTileSetID = parseInt(selectedTileSetSerialized, 10)
-    selectTileSet(selectedTileSetID)
-  }
+  const selectedTileSetSerialized = localStorage.getItem("selectedTileSet")
+  const selectedTileSetID = selectedTileSetSerialized
+    ? parseInt(selectedTileSetSerialized, 10)
+    : 0
+  selectTileSet(selectedTileSetID)
 }
 
 function migrateTileMap(tileMap) {
   if (!tileMap.tileSets) {
     tileMap.tileSets = {}
     tileMap.tileSets[0] = {
-      name: 'tileset.png',
-      content: localStorage.getItem('tileSetUrl'),
+      name: "tileset.png",
+      content: localStorage.getItem("tileSetUrl"),
     }
   }
 
-  if (!tileMap.tiles[0][0].hasOwnProperty('tileSet')) {
+  if (!tileMap.tiles[0][0]?.hasOwnProperty("tileSet")) {
     for (const levelTileMap of tileMap.tiles) {
       for (const tile of levelTileMap) {
         if (tile) {
@@ -214,11 +250,11 @@ function migrateTileMap(tileMap) {
 $canvas.width = tileMap.size.width
 $canvas.height = tileMap.size.height
 
-$tileHover.style.width = tileMap.tileSize.width + 'px'
-$tileHover.style.height = tileMap.tileSize.height + 'px'
+$tileHover.style.width = tileMap.tileSize.width + "px"
+$tileHover.style.height = tileMap.tileSize.height + "px"
 
-$tileSelected.style.width = tileMap.tileSize.width + 'px'
-$tileSelected.style.height = tileMap.tileSize.height + 'px'
+$tileSelected.style.width = tileMap.tileSize.width + "px"
+$tileSelected.style.height = tileMap.tileSize.height + "px"
 
 renderGrid()
 
@@ -226,7 +262,7 @@ if (tileMapSerialized) {
   if ($tileSet.complete) {
     renderTileMap()
   } else {
-    $tileSet.addEventListener('load', function () {
+    $tileSet.addEventListener("load", function () {
       renderTileMap()
     })
   }
@@ -240,49 +276,67 @@ function retrieveTile(position) {
 
 function retrieveTile2({ row, column }) {
   const index = calculateIndex({ row, column })
-  return tileMap.tiles.map(levelTileMap =>
-    levelTileMap ? levelTileMap[index] : null
+  return tileMap.tiles.map((levelTileMap) =>
+    levelTileMap ? levelTileMap[index] : null,
   )
 }
 
-let firstPointTileMap = null
-let selectedTilesInTileMap = null
-let isPointerDownInTileMap = false
+let firstPointTileMap: Point | null = null
+let selectedTilesInTileMap: Area | null = null
+let isPointerDownInTileMap: boolean = false
 
-$canvas.addEventListener('pointerdown', function (event) {
+$canvas.addEventListener("pointerdown", function (event) {
   event.preventDefault()
+  doPointerDownOnTileMap(convertEventToPosition(event))
+})
+
+function convertEventToPosition(event: PointerEvent): Position {
+  return {
+    x: event.offsetX,
+    y: event.offsetY,
+  }
+}
+
+export function useToolAt(x, y): void {
+  if (app.activeTool === "pen") {
+  }
+}
+
+function doPointerDownOnTileMap(point: Point): void {
   isPointerDownInTileMap = true
 
-  if (activeTool === 'fill') {
-    fill(event)
-  } else {
-    selectTileInTileMap(event)
+  if (!isInPasteMode) {
+    if (app.activeTool === "fill") {
+      fill(point)
+    } else {
+      selectTileInTileMap(point)
 
-    if (selectedTiles) {
-      if (activeTool === 'pen') {
-        setTiles(event)
+      if (selectedTiles) {
+        if (app.activeTool === "pen") {
+          setTiles(point)
+        }
       }
     }
   }
-})
+}
 
-function previewFill(event) {
-  doAFillMethod(event, function (tile, selectedTile) {
-    const replacements = []
+function previewFill(point: Point): void {
+  doAFillMethod(point, function (tile, selectedTile) {
+    const replacements: MultiLayerTile = []
     replacements[level] = selectedTile
     renderTile(
       {
         x: tile.column * tileMap.tileSize.width,
         y: tile.row * tileMap.tileSize.height,
       },
-      replacements
+      replacements,
     )
   })
 }
 
-function fill(event) {
+function fill(point: Point): void {
   backUpMap()
-  doAFillMethod(event, function (tile, selectedTile) {
+  doAFillMethod(point, function (tile, selectedTile) {
     setTileOnCurrentLevel(tile, selectedTile)
   })
   renderTileMap()
@@ -299,18 +353,17 @@ function copyMap(tileMap) {
   return {
     size: { ...tileMap.size },
     tileSize: { ...tileMap.tileSize },
-    tiles: tileMap.tiles.map(tiles => Array.from(tiles)),
+    tiles: tileMap.tiles.map((tiles) => Array.from(tiles)),
   }
 }
 
-function doAFillMethod(event, fn) {
+function doAFillMethod(position: Position, fn) {
   const origin = {
     row:
-      adjustToStep(event.offsetY, tileMap.tileSize.height) /
+      adjustToStep(position.y, tileMap.tileSize.height) /
       tileMap.tileSize.height,
     column:
-      adjustToStep(event.offsetX, tileMap.tileSize.width) /
-      tileMap.tileSize.width,
+      adjustToStep(position.x, tileMap.tileSize.width) / tileMap.tileSize.width,
   }
 
   const originTileBeforeFill = retrieveTile2(origin)[level]
@@ -344,7 +397,7 @@ function doAFillMethod(event, fn) {
         setAsVisited(tile)
         const neighbors = retrieveNeighborsWithSetTile(
           tile,
-          originTileBeforeFill
+          originTileBeforeFill,
         ).filter(hasNotBeenVisited)
         nextTiles.push(...neighbors)
       }
@@ -353,11 +406,11 @@ function doAFillMethod(event, fn) {
 }
 
 function retrieveNeighborsWithSetTile(tile, setTile) {
-  return retrieveNeighbors(tile).filter(tile => isTileSetTo(tile, setTile))
+  return retrieveNeighbors(tile).filter((tile) => isTileSetTo(tile, setTile))
 }
 
 function retrieveNeighbors(tile) {
-  const neighbors = []
+  const neighbors: CellPosition[] = []
   if (tile.row >= 1) {
     neighbors.push({
       row: tile.row - 1,
@@ -395,9 +448,9 @@ function isTileSetTo(tile, setTile) {
   )
 }
 
-function selectTileInTileMap(event) {
-  const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
-  const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+function selectTileInTileMap({ x, y }: Position): void {
+  x = adjustToStep(x, tileMap.tileSize.width)
+  y = adjustToStep(y, tileMap.tileSize.height)
   firstPointTileMap = {
     x,
     y,
@@ -410,17 +463,17 @@ function selectTileInTileMap(event) {
     height: tileMap.tileSize.height,
   }
 
-  if (activeTool === 'selection') {
+  if (app.activeTool === "selection") {
     updateSelectedArea()
   }
 }
 
 function updateSelectedArea() {
-  $selectedArea.style.display = 'block'
-  $selectedArea.style.left = selectedTilesInTileMap.x + 'px'
-  $selectedArea.style.top = selectedTilesInTileMap.y + 'px'
-  $selectedArea.style.width = selectedTilesInTileMap.width + 'px'
-  $selectedArea.style.height = selectedTilesInTileMap.height + 'px'
+  $selectedArea.style.display = "block"
+  $selectedArea.style.left = selectedTilesInTileMap.x + "px"
+  $selectedArea.style.top = selectedTilesInTileMap.y + "px"
+  $selectedArea.style.width = selectedTilesInTileMap.width + "px"
+  $selectedArea.style.height = selectedTilesInTileMap.height + "px"
 }
 
 function preview9SliceMade() {
@@ -436,7 +489,7 @@ function preview9SliceMade() {
       selectedTilesInTileMap.x + column * tileMap.tileSize.width,
       selectedTilesInTileMap.y + row * tileMap.tileSize.height,
       tileMap.tileSize.width,
-      tileMap.tileSize.height
+      tileMap.tileSize.height,
     )
   })
 }
@@ -456,21 +509,18 @@ function previewArea() {
       selectedTilesInTileMap.x + column * tileMap.tileSize.width,
       selectedTilesInTileMap.y + row * tileMap.tileSize.height,
       tileMap.tileSize.width,
-      tileMap.tileSize.height
+      tileMap.tileSize.height,
     )
   })
 }
 
-let lastPointerPosition = null
+let lastPointerPosition: Point | null = null
 
-$canvas.addEventListener('pointermove', function (event) {
-  lastPointerPosition = {
-    x: event.offsetX,
-    y: event.offsetY,
-  }
+$canvas.addEventListener("pointermove", function (event) {
+  lastPointerPosition = convertEventToPosition(event)
 
   if (isPointerDownInTileMap) {
-    if (activeTool === 'area') {
+    if (app.activeTool === "area") {
       if (selectedTiles) {
         expandSelectTilesInTileMap(event)
         if (seemsThat9SliceIsSelected()) {
@@ -481,12 +531,12 @@ $canvas.addEventListener('pointermove', function (event) {
           renderGrid()
         }
       }
-    } else if (activeTool === 'pen') {
+    } else if (app.activeTool === "pen") {
       if (selectedTiles) {
-        setTiles(event)
+        setTiles(lastPointerPosition)
         renderGrid()
       }
-    } else if (activeTool === 'selection') {
+    } else if (app.activeTool === "selection") {
       expandSelectTilesInTileMap(event)
       updateSelectedArea()
     }
@@ -494,7 +544,7 @@ $canvas.addEventListener('pointermove', function (event) {
     renderTileMap()
     previewPaste()
   } else if (selectedTiles) {
-    if (activeTool === 'pen') {
+    if (app.activeTool === "pen") {
       const previousPreviewTiles = previewTiles
       previewTiles = {
         x: adjustToStep(event.offsetX, tileMap.tileSize.width),
@@ -512,7 +562,7 @@ $canvas.addEventListener('pointermove', function (event) {
         renderPreviewTiles()
         renderGrid()
       }
-    } else if (activeTool === 'area') {
+    } else if (app.activeTool === "area") {
       const previousPreviewTiles = previewTiles
       previewTiles = {
         x: adjustToStep(event.offsetX, tileMap.tileSize.width),
@@ -530,9 +580,9 @@ $canvas.addEventListener('pointermove', function (event) {
         renderPreviewTiles()
         renderGrid()
       }
-    } else if (activeTool === 'fill') {
+    } else if (app.activeTool === "fill") {
       renderTileMap()
-      previewFill(event)
+      previewFill(convertEventToPosition(event))
       renderGrid()
     }
   }
@@ -556,18 +606,18 @@ function seemsThat9SliceIsSelected() {
   )
 }
 
-$canvas.addEventListener('mouseleave', function () {
+$canvas.addEventListener("mouseleave", function () {
   previewTiles = null
   renderTileMap()
 })
 
-window.addEventListener('pointerup', function () {
+window.addEventListener("pointerup", function () {
   const wasPointerDownInTileMap = isPointerDownInTileMap
 
   isPointerDownInTileMap = false
 
   if (wasPointerDownInTileMap) {
-    if (activeTool === 'area') {
+    if (app.activeTool === "area") {
       if (seemsThat9SliceIsSelected()) {
         setTilesWith9SliceMethod()
       } else {
@@ -577,22 +627,19 @@ window.addEventListener('pointerup', function () {
   }
 
   firstPointTileMap = null
-  if (activeTool !== 'selection') {
+  if (app.activeTool !== "selection") {
     selectedTilesInTileMap = null
   }
 })
 
-$canvas.addEventListener('pointerup', function (event) {
+$canvas.addEventListener("pointerup", function (event) {
   if (isInPasteMode) {
     paste(event)
   }
 })
 
 function putSelectedTilesOnMap() {
-  setTiles({
-    offsetX: firstPointTileMap.x,
-    offsetY: firstPointTileMap.y,
-  })
+  setTiles(firstPointTileMap)
 }
 
 function area() {
@@ -610,7 +657,7 @@ function area() {
     }
     setTileOnCurrentLevel(
       { row: baseRow + row, column: baseColumn + column },
-      selectedTile
+      selectedTile,
     )
   })
   renderTileMap()
@@ -633,7 +680,7 @@ function setTilesWith9SliceMethod() {
         row: baseRow + row,
         column: baseColumn + column,
       },
-      tile
+      tile,
     )
   })
 
@@ -694,7 +741,7 @@ function do9SliceMethodWithSelectedTiles(fn) {
         x: selectedTilesX,
         y: selectedTilesY,
         tileSet: retrieveSelectedTileSetID(),
-      }
+      },
     )
   })
 }
@@ -707,13 +754,13 @@ function calculateNumberOfColumns(width) {
   return width / tileMap.tileSize.width
 }
 
-const toggleGridButton = menuIconBar.querySelector('.toggle-grid-button')
+const toggleGridButton = menuIconBar.querySelector(".toggle-grid-button")
 
 function updateToggleGridButton() {
   if (isGridShown) {
-    toggleGridButton.classList.add('active')
+    toggleGridButton.classList.add("active")
   } else {
-    toggleGridButton.classList.remove('active')
+    toggleGridButton.classList.remove("active")
   }
 }
 
@@ -722,11 +769,11 @@ updateToggleGridButton()
 function toggleGrid() {
   isGridShown = !isGridShown
   updateToggleGridButton()
-  localStorage.setItem('isGridShown', isGridShown)
+  localStorage.setItem("isGridShown", isGridShown)
   renderTileMap()
 }
 
-toggleGridButton.addEventListener('click', toggleGrid)
+toggleGridButton.addEventListener("click", toggleGrid)
 
 function updateToolButtonStates() {
   updatePenToolButton()
@@ -736,65 +783,67 @@ function updateToolButtonStates() {
 }
 
 function updateToolButton(button, tool) {
-  if (activeTool === tool) {
-    button.classList.add('active')
+  if (app.activeTool === tool) {
+    button.classList.add("active")
   } else {
-    button.classList.remove('active')
+    button.classList.remove("active")
   }
 }
 
 function activatePenTool() {
-  changeTool('pen')
+  changeTool("pen")
 }
 
-penToolButton.addEventListener('click', activatePenTool)
+export const selectPenTool = activatePenTool
+
+penToolButton.addEventListener("click", activatePenTool)
 
 function updatePenToolButton() {
-  updateToolButton(penToolButton, 'pen')
+  updateToolButton(penToolButton, "pen")
 }
 
 function activateAreaTool() {
-  changeTool('area')
+  changeTool("area")
 }
 
-areaToolButton.addEventListener('click', activateAreaTool)
+areaToolButton.addEventListener("click", activateAreaTool)
 
 function updateAreaToolButton() {
-  updateToolButton(areaToolButton, 'area')
+  updateToolButton(areaToolButton, "area")
 }
 
 function activateFillTool() {
-  changeTool('fill')
+  changeTool("fill")
 }
 
-fillToolButton.addEventListener('click', activateFillTool)
+fillToolButton.addEventListener("click", activateFillTool)
 
 function updateFillToolButton() {
-  updateToolButton(fillToolButton, 'fill')
+  updateToolButton(fillToolButton, "fill")
 }
 
 function activateSelectTool() {
-  changeTool('selection')
+  changeTool("selection")
 }
 
 function changeTool(tool) {
-  if (tool !== activeTool) {
-    activeTool = tool
+  if (tool !== app.activeTool) {
+    app.activeTool = tool
     updateToolButtonStates()
-    $selectedArea.style.display = 'none'
+    $selectedArea.style.display = "none"
   }
 }
 
-selectionToolButton.addEventListener('click', activateSelectTool)
+selectionToolButton.addEventListener("click", activateSelectTool)
 
 function updateSelectionToolButton() {
-  updateToolButton(selectionToolButton, 'selection')
+  updateToolButton(selectionToolButton, "selection")
 }
 
 updateToolButtonStates()
 
 const renderOnlyCurrentLevelButton = document.querySelector(
-  '.render-only-current-level-button'
+  ".render-only-current-level-button",
 )
 
 function toggleRenderOnlyCurrentLevel() {
@@ -804,51 +853,51 @@ function toggleRenderOnlyCurrentLevel() {
 }
 
 renderOnlyCurrentLevelButton.addEventListener(
-  'click',
-  toggleRenderOnlyCurrentLevel
+  "click",
+  toggleRenderOnlyCurrentLevel,
 )
 
 function updateRenderOnlyCurrentLevelButton() {
   if (renderOnlyCurrentLevel) {
-    renderOnlyCurrentLevelButton.classList.add('active')
+    renderOnlyCurrentLevelButton.classList.add("active")
   } else {
-    renderOnlyCurrentLevelButton.classList.remove('active')
+    renderOnlyCurrentLevelButton.classList.remove("active")
   }
 }
 
 const saveTileMap = debounce(function () {
-  localStorage.setItem('tileMap', JSON.stringify(tileMap))
+  localStorage.setItem("tileMap", JSON.stringify(tileMap))
 })
 
-const $tileMapSettingsModal = document.querySelector('#tilemapSettings')
+const $tileMapSettingsModal = document.querySelector("#tilemapSettings")
 const tileMapSettingsModal = new bootstrap.Modal($tileMapSettingsModal)
 
 function showEditMapDialog() {
   tileMapSettingsModal.show()
 }
 
-$tileMapSettingsModal.addEventListener('show.bs.modal', function () {
-  $tileMapSettingsModal.querySelector('#tilemapSettingsWidth').value =
+$tileMapSettingsModal.addEventListener("show.bs.modal", function () {
+  $tileMapSettingsModal.querySelector("#tilemapSettingsWidth").value =
     tileMap.size.width / tileMap.tileSize.width
-  $tileMapSettingsModal.querySelector('#tilemapSettingsHeight').value =
+  $tileMapSettingsModal.querySelector("#tilemapSettingsHeight").value =
     tileMap.size.height / tileMap.tileSize.height
 })
 
-$tileMapSettingsModal.addEventListener('shown.bs.modal', function () {
-  const $width = $tileMapSettingsModal.querySelector('#tilemapSettingsWidth')
+$tileMapSettingsModal.addEventListener("shown.bs.modal", function () {
+  const $width = $tileMapSettingsModal.querySelector("#tilemapSettingsWidth")
   $width.focus()
   $width.select()
 })
 
 $tileMapSettingsModal
-  .querySelector('#tilemapSettingsForm')
-  .addEventListener('submit', function (event) {
+  .querySelector("#tilemapSettingsForm")
+  .addEventListener("submit", function (event) {
     event.preventDefault()
 
     const formData = new FormData(event.target)
 
-    const width = parseInt(formData.get('width'), 10)
-    const height = parseInt(formData.get('height'), 10)
+    const width = parseInt(formData.get("width"), 10)
+    const height = parseInt(formData.get("height"), 10)
 
     resizeMap({
       width: width * tileMap.tileSize.width,
@@ -866,36 +915,36 @@ $tileMapSettingsModal
   })
 
 {
-  const $newTileMapModal = document.querySelector('#newTileMap')
+  const $newTileMapModal = document.querySelector("#newTileMap")
   const newTileMapModal = new bootstrap.Modal($newTileMapModal)
 
   function openCreateNewMapDialog() {
     newTileMapModal.show()
   }
 
-  $newTileMapModal.addEventListener('show.bs.modal', function () {
-    $newTileMapModal.querySelector('#newTileMapWidth').value = DEFAULT_MAP_WIDTH
-    $newTileMapModal.querySelector('#newTileMapHeight').value =
+  $newTileMapModal.addEventListener("show.bs.modal", function () {
+    $newTileMapModal.querySelector("#newTileMapWidth").value = DEFAULT_MAP_WIDTH
+    $newTileMapModal.querySelector("#newTileMapHeight").value =
       DEFAULT_MAP_HEIGHT
   })
 
-  $newTileMapModal.addEventListener('shown.bs.modal', function () {
-    const $width = $newTileMapModal.querySelector('#newTileMapWidth')
+  $newTileMapModal.addEventListener("shown.bs.modal", function () {
+    const $width = $newTileMapModal.querySelector("#newTileMapWidth")
     $width.focus()
     $width.select()
   })
 
   $newTileMapModal
-    .querySelector('#newTileMapForm')
-    .addEventListener('submit', function (event) {
+    .querySelector("#newTileMapForm")
+    .addEventListener("submit", async function (event) {
       event.preventDefault()
 
       const formData = new FormData(event.target)
 
-      const width = parseInt(formData.get('width'), 10)
-      const height = parseInt(formData.get('height'), 10)
+      const width = parseInt(formData.get("width"), 10)
+      const height = parseInt(formData.get("height"), 10)
 
-      tileMap = createTileMap({
+      tileMap = await createTileMap({
         width,
         height,
       })
@@ -903,7 +952,7 @@ $tileMapSettingsModal
       $canvas.width = tileMap.size.width
       $canvas.height = tileMap.size.height
 
-      localStorage.removeItem('openFileName')
+      localStorage.removeItem("openFileName")
 
       renderTileMap()
 
@@ -913,7 +962,7 @@ $tileMapSettingsModal
     })
 }
 
-function createTileMap({ width, height }) {
+async function createTileMap({ width, height }) {
   return {
     size: {
       width: width * DEFAULT_TILE_WIDTH,
@@ -925,22 +974,35 @@ function createTileMap({ width, height }) {
     },
     tileSets: {
       0: {
-        name: 'tileset.png',
-        content: null,
+        name: "tileset.png",
+        content: await loadFileAsDataUrl("tileset.png"),
       },
     },
     tiles: [new Array(width * height)],
   }
 }
 
+async function loadFileAsDataUrl(url: string): Promise<string> {
+  const response = await fetch(url)
+  const blob = await response.blob()
+  const fileReader = new FileReader()
+  return new Promise((resolve, onError) => {
+    fileReader.onload = () => {
+      resolve(fileReader.result as string)
+    }
+    fileReader.onerror = onError
+    fileReader.readAsDataURL(blob)
+  })
+}
+
 function resizeMap({ width, height }) {
   backUpMap()
 
   const oldNumberOfRows = Math.ceil(
-    tileMap.size.height / tileMap.tileSize.height
+    tileMap.size.height / tileMap.tileSize.height,
   )
   const oldNumberOfColumns = Math.ceil(
-    tileMap.size.width / tileMap.tileSize.width
+    tileMap.size.width / tileMap.tileSize.width,
   )
   const numberOfRows = Math.ceil(height / tileMap.tileSize.height)
   const numberOfColumns = Math.ceil(width / tileMap.tileSize.width)
@@ -963,11 +1025,11 @@ function resizeMap({ width, height }) {
   tileMap.size.height = height
 }
 
-function setTiles(event) {
+function setTiles({ x, y }: Point) {
   backUpMap()
 
-  const baseX = adjustToStep(event.offsetX, tileMap.tileSize.width)
-  const baseY = adjustToStep(event.offsetY, tileMap.tileSize.height)
+  const baseX = adjustToStep(x, tileMap.tileSize.width)
+  const baseY = adjustToStep(y, tileMap.tileSize.height)
 
   let somethingHasChanged = false
   for (let y = 0; y < selectedTiles.height; y += tileMap.tileSize.height) {
@@ -1010,7 +1072,7 @@ function setTile({ row, column }, tile, level) {
   if (!previousTile || areDifferent(previousTile, tile)) {
     if (!tileMap.tiles[level]) {
       tileMap.tiles[level] = new Array(
-        retrieveNumberOfColumns(tileMap) * retrieveNumberOfRows(tileMap)
+        retrieveNumberOfColumns(tileMap) * retrieveNumberOfRows(tileMap),
       )
     }
     tileMap.tiles[level][index] = tile
@@ -1050,13 +1112,13 @@ function renderTiles(area) {
   }
 }
 
-function renderTile(position, replacements = null) {
+function renderTile(position, replacements?: MultiLayerTile) {
   const tile = retrieveTile(position)
   context.clearRect(
     position.x,
     position.y,
     tileMap.tileSize.width,
-    tileMap.tileSize.height
+    tileMap.tileSize.height,
   )
   if (tile) {
     context.save()
@@ -1068,7 +1130,7 @@ function renderTile(position, replacements = null) {
       if (tileOnLayer) {
         context.globalAlpha = level2 > level ? 0.4 : 1
         const image =
-          typeof tileOnLayer.tileSet === 'number'
+          typeof tileOnLayer.tileSet === "number"
             ? tileSets[tileOnLayer.tileSet]
             : $tileSet
         if (image) {
@@ -1081,7 +1143,7 @@ function renderTile(position, replacements = null) {
             position.x,
             position.y,
             tileMap.tileSize.width,
-            tileMap.tileSize.height
+            tileMap.tileSize.height,
           )
         }
       }
@@ -1104,7 +1166,7 @@ function renderTile(position, replacements = null) {
 }
 
 async function createImageFromDataURL(dataURL) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const image = new Image()
     image.onload = function () {
       resolve(image)
@@ -1126,7 +1188,7 @@ function renderSelectedTiles(area, selectedTiles) {
           x: area.x + x,
           y: area.y + y,
         },
-        replacements
+        replacements,
       )
     }
   }
@@ -1135,12 +1197,12 @@ function renderSelectedTiles(area, selectedTiles) {
 }
 
 function renderEmptyTile(position) {
-  context.fillStyle = 'white'
+  context.fillStyle = "white"
   context.fillRect(
     position.x,
     position.y,
     tileMap.tileSize.width,
-    tileMap.tileSize.height
+    tileMap.tileSize.height,
   )
 }
 
@@ -1169,7 +1231,7 @@ function renderTileMap() {
 
 function renderGrid() {
   if (isGridShown) {
-    context.fillStyle = 'black'
+    context.fillStyle = "black"
 
     for (
       let y = tileMap.tileSize.height;
@@ -1203,9 +1265,9 @@ function debounce(fn, delay = 1000) {
 
 const types = [
   {
-    description: 'Map',
+    description: "Map",
     accept: {
-      'text/json': ['.json'],
+      "text/json": [".json"],
     },
   },
 ]
@@ -1224,10 +1286,10 @@ async function loadTileMap() {
       ...filePickerBaseOptions,
       types: [
         {
-          description: 'Map',
+          description: "Map",
           accept: {
-            'text/json': ['.json'],
-            'application/xml': ['.tmx'],
+            "text/json": [".json"],
+            "application/xml": [".tmx"],
           },
         },
       ],
@@ -1242,12 +1304,12 @@ async function loadTileMap() {
     const fileName = fileHandle.name
     const extension = path.extname(fileName)
 
-    localStorage.setItem('openFileName', fileName)
+    localStorage.setItem("openFileName", fileName)
     const file = await fileHandle.getFile()
     const content = await file.text()
-    if (extension === '.json') {
+    if (extension === ".json") {
       tileMap = parseJSONTileMap(content)
-    } else if (extension === '.tmx') {
+    } else if (extension === ".tmx") {
       tileMap = parseTiledTileMap(content)
     }
     level = tileMap.tiles.length - 1
@@ -1256,11 +1318,11 @@ async function loadTileMap() {
     $canvas.width = tileMap.size.width
     $canvas.height = tileMap.size.height
 
-    $tileHover.style.width = tileMap.tileSize.width + 'px'
-    $tileHover.style.height = tileMap.tileSize.height + 'px'
+    $tileHover.style.width = tileMap.tileSize.width + "px"
+    $tileHover.style.height = tileMap.tileSize.height + "px"
 
-    $tileSelected.style.width = tileMap.tileSize.width + 'px'
-    $tileSelected.style.height = tileMap.tileSize.height + 'px'
+    $tileSelected.style.width = tileMap.tileSize.width + "px"
+    $tileSelected.style.height = tileMap.tileSize.height + "px"
 
     renderTileMap()
 
@@ -1275,7 +1337,7 @@ function parseJSONTileMap(content) {
 function parseTiledTileMap(content) {
   const parser = new XMLParser({
     ignoreAttributes: false,
-    attributeNamePrefix: '',
+    attributeNamePrefix: "",
   })
   const data = parser.parse(content)
   debugger
@@ -1285,7 +1347,7 @@ function parseTiledTileMap(content) {
     height: parseInt(map.height, 10),
   })
   tileMap.tiles = map.layer.map(function (layer) {
-    layer.data['#text'].split(',').map(value => parseInt(value, 10))
+    layer.data["#text"].split(",").map((value) => parseInt(value, 10))
   })
 }
 
@@ -1296,7 +1358,7 @@ async function saveMap() {
   try {
     handle = await window.showSaveFilePicker({
       ...filePickerBaseOptions,
-      suggestedName: localStorage.getItem('openFileName') || 'map.json',
+      suggestedName: localStorage.getItem("openFileName") || "map.json",
     })
   } catch (error) {
     if (error.code !== ABORT_ERROR) {
@@ -1310,66 +1372,66 @@ async function saveMap() {
   }
 }
 
-window.addEventListener('keydown', function (event) {
+window.addEventListener("keydown", function (event) {
   if (!isModalOpen) {
-    if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'z') {
+    if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "z") {
       event.preventDefault()
       undo()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'c') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "c") {
       event.preventDefault()
       copy()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'x') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "x") {
       event.preventDefault()
       cut()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'v') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "v") {
       event.preventDefault()
       startPasting()
     } else if (
       isOnlyCtrlOrCmdModifierKeyPressed(event) &&
-      event.code === 'ArrowUp'
+      event.code === "ArrowUp"
     ) {
       event.preventDefault()
       incrementLevel()
     } else if (
       isOnlyCtrlOrCmdModifierKeyPressed(event) &&
-      event.code === 'ArrowDown'
+      event.code === "ArrowDown"
     ) {
       event.preventDefault()
       decrementLevel()
-    } else if (isNoModifierKeyPressed(event) && event.key === 'f') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "f") {
       event.preventDefault()
       activateFillTool()
-    } else if (isNoModifierKeyPressed(event) && event.key === 'p') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "p") {
       event.preventDefault()
       activatePenTool()
-    } else if (isNoModifierKeyPressed(event) && event.key === 'a') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "a") {
       event.preventDefault()
       activateAreaTool()
-    } else if (isNoModifierKeyPressed(event) && event.key === 's') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "s") {
       event.preventDefault()
       activateSelectTool()
-    } else if (isNoModifierKeyPressed(event) && event.key === 'g') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "g") {
       event.preventDefault()
       toggleGrid()
-    } else if (isNoModifierKeyPressed(event) && event.key === 'c') {
+    } else if (isNoModifierKeyPressed(event) && event.key === "c") {
       event.preventDefault()
       toggleRenderOnlyCurrentLevel()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'o') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "o") {
       event.preventDefault()
       loadTileMap()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 's') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "s") {
       event.preventDefault()
       saveMap()
     } else if (
       isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
-      event.code === 'KeyN'
+      event.code === "KeyN"
     ) {
       event.preventDefault()
       openCreateNewMapDialog()
-    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === 'e') {
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "e") {
       event.preventDefault()
       showEditMapDialog()
-    } else if (event.code === 'Escape') {
+    } else if (event.code === "Escape") {
       if (isInPasteMode) {
         event.preventDefault()
         isInPasteMode = false
@@ -1379,27 +1441,27 @@ window.addEventListener('keydown', function (event) {
   }
 })
 
-const isOnMac = navigator.platform.indexOf('Mac') === 0
+const isOnMac = navigator.platform.indexOf("Mac") === 0
 
 if (isOnMac) {
   const elementsWithShortcutInText = [
-    document.getElementById('showNewTileMapDialogButton'),
-    document.getElementById('showEditTileMapDialogButton'),
-    document.getElementById('importFromFile'),
-    document.getElementById('exportToFile'),
-    document.getElementById('undo'),
+    document.getElementById("showNewTileMapDialogButton"),
+    document.getElementById("showEditTileMapDialogButton"),
+    document.getElementById("importFromFile"),
+    document.getElementById("exportToFile"),
+    document.getElementById("undo"),
   ]
 
-  elementsWithShortcutInText.forEach(element => {
-    element.textContent = element.textContent.replace(/Ctrl/g, 'Cmd')
+  elementsWithShortcutInText.forEach((element) => {
+    element.textContent = element.textContent.replace(/Ctrl/g, "Cmd")
   })
 
   const elementsWithShortcutInTitle = [
-    document.getElementById('showLoadTileSetDialogButton'),
+    document.getElementById("showLoadTileSetDialogButton"),
   ]
 
-  elementsWithShortcutInTitle.forEach(element => {
-    element.title = element.title.replace(/Ctrl/g, 'Cmd')
+  elementsWithShortcutInTitle.forEach((element) => {
+    element.title = element.title.replace(/Ctrl/g, "Cmd")
   })
 }
 
@@ -1433,7 +1495,7 @@ function decrementLevel() {
 
 function setLevel(value) {
   level = value
-  $level.value = level
+  $level.value = String(level)
   renderTileMap()
 }
 
@@ -1443,23 +1505,23 @@ function undo() {
     const oldTileMap = tileMap
     tileMap = lastBackup
     if (tileMap.size.width !== oldTileMap.size.width) {
-      canvas.width = tileMap.size.width
+      $canvas.width = tileMap.size.width
     }
     if (tileMap.size.height !== oldTileMap.size.height) {
-      canvas.height = tileMap.size.height
+      $canvas.height = tileMap.size.height
     }
     renderTileMap()
     saveTileMap()
   }
 }
 
-let copiedTiles = null
-let copiedArea = null
-let hasBeenCopiedForOneLevel = null
-let isInPasteMode = false
+let copiedTiles: Tile[] | Array<Tile[]> | null = null
+let copiedArea: FromToArea | null = null
+let hasBeenCopiedForOneLevel: boolean | null = null
+let isInPasteMode: boolean = false
 
 function copy() {
-  if (activeTool === 'selection') {
+  if (app.activeTool === "selection") {
     copiedArea = determineCutArea()
     copiedTiles = new Array(tileMap.tiles.length)
     if (renderOnlyCurrentLevel) {
@@ -1475,7 +1537,7 @@ function copy() {
 }
 
 function cut() {
-  if (activeTool === 'selection') {
+  if (app.activeTool === "selection") {
     backUpMap()
     copiedArea = determineCutArea()
     copiedTiles = new Array(tileMap.tiles.length)
@@ -1504,11 +1566,11 @@ function determineCutArea() {
     to: {
       row: Math.ceil(
         (selectedTilesInTileMap.y + selectedTilesInTileMap.height) /
-          tileMap.tileSize.height
+          tileMap.tileSize.height,
       ),
       column: Math.ceil(
         (selectedTilesInTileMap.x + selectedTilesInTileMap.width) /
-          tileMap.tileSize.width
+          tileMap.tileSize.width,
       ),
     },
   }
@@ -1524,7 +1586,7 @@ function removeTiles(tiles, area) {
   const numberOfRows = area.to.row - area.from.row
   const numberOfColumns = area.to.column - area.from.column
   const numberOfColumnsInTileMap = Math.ceil(
-    tileMap.size.width / tileMap.tileSize.width
+    tileMap.size.width / tileMap.tileSize.width,
   )
   for (let rowOffset = 0; rowOffset < numberOfRows; rowOffset++) {
     for (let columnOffset = 0; columnOffset < numberOfColumns; columnOffset++) {
@@ -1564,15 +1626,18 @@ function paste(event) {
 }
 
 function previewPaste() {
-  doSomethingWithCopiedTiles(function ({ row, column }, cutTile) {
+  doSomethingWithCopiedTiles(function (
+    { row, column }: CellPosition,
+    cutTile: MultiLayerTile | Tile,
+  ) {
     const x = column * tileMap.tileSize.width
     const y = row * tileMap.tileSize.height
     if (hasBeenCopiedForOneLevel) {
-      const replacements = []
-      replacements[level] = cutTile
+      const replacements: MultiLayerTile = []
+      replacements[level] = cutTile as Tile
       renderTile({ x, y }, replacements)
     } else {
-      renderTile({ x, y }, cutTile)
+      renderTile({ x, y }, cutTile as MultiLayerTile)
     }
   })
 
@@ -1640,54 +1705,53 @@ function copyArea(tilesLayer, area) {
   return tiles
 }
 
-document
-  .querySelector('#exportToFile')
-  .addEventListener('click', function (event) {
-    event.preventDefault()
-    saveMap()
-  })
+;(
+  document.querySelector("#exportToFile") as HTMLButtonElement
+).addEventListener("click", function (event) {
+  event.preventDefault()
+  saveMap()
+})
+;(
+  document.querySelector("#importFromFile") as HTMLButtonElement
+).addEventListener("click", function (event) {
+  event.preventDefault()
+  loadTileMap()
+})
 
-document
-  .querySelector('#importFromFile')
-  .addEventListener('click', function (event) {
-    event.preventDefault()
-    loadTileMap()
-  })
-
-const $undo = document.querySelector('#undo')
-$undo.addEventListener('click', function () {
+const $undo = document.querySelector("#undo") as HTMLAnchorElement
+$undo.addEventListener("click", function () {
   undo()
 })
 
 const showEditTileSetDialogButton = document.querySelector(
-  '#showEditTileSetDialogButton'
+  "#showEditTileSetDialogButton",
 )
 
 async function loadTileSet() {
-  return new Promise(async resolve => {
+  return new Promise(async (resolve) => {
     let fileHandles
     try {
       fileHandles = await window.showOpenFilePicker({
         excludeAcceptAllOption: true,
         types: [
           {
-            description: 'Image',
+            description: "Image",
             accept: {
-              'image/*': [
-                '.apng',
-                '.avif',
-                '.gif',
-                '.jpg',
-                '.jpeg',
-                '.jfif',
-                '.pjpeg',
-                '.pjp',
-                '.png',
-                '.svg',
-                '.webp',
-                '.bmp',
-                '.tif',
-                '.tiff',
+              "image/*": [
+                ".apng",
+                ".avif",
+                ".gif",
+                ".jpg",
+                ".jpeg",
+                ".jfif",
+                ".pjpeg",
+                ".pjp",
+                ".png",
+                ".svg",
+                ".webp",
+                ".bmp",
+                ".tif",
+                ".tiff",
               ],
             },
           },
@@ -1716,8 +1780,8 @@ async function loadTileSet() {
 }
 
 {
-  const $addTileSet = document.querySelector('#addTileSet')
-  $addTileSet.addEventListener('click', function () {
+  const $addTileSet = document.querySelector("#addTileSet") as HTMLButtonElement
+  $addTileSet.addEventListener("click", function () {
     showAddTileSetDialog()
   })
 }
@@ -1744,52 +1808,56 @@ function selectTileSet(id) {
   $tileSetSelect.value = id
   const tileSet = tileMap.tileSets[id]
   $tileSet.src = tileSet.content
-  localStorage.setItem('selectedTileSet', id)
+  localStorage.setItem("selectedTileSet", id)
 }
 
 function retrieveSelectedTileSetID() {
   return parseInt($tileSetSelect.value, 10)
 }
 
-$tileSetSelect.addEventListener('change', function () {
+$tileSetSelect.addEventListener("change", function () {
   selectTileSet(retrieveSelectedTileSetID())
 })
 
 {
-  const $removeTileSet = document.querySelector('#removeTileSet')
-  $removeTileSet.addEventListener('click', function () {
+  const $removeTileSet = document.querySelector(
+    "#removeTileSet",
+  ) as HTMLButtonElement
+  $removeTileSet.addEventListener("click", function () {
     removeTileSet($tileSetSelect.value)
   })
 }
 
 function removeTileSet(id) {
   delete tileMap.tileSets[id]
-  $tileSetSelect.querySelector(`option[value="${id}"]`).remove()
+  ;(
+    $tileSetSelect.querySelector(`option[value="${id}"]`) as HTMLOptionElement
+  ).remove()
   selectTileSet(parseInt($tileSetSelect.value, 10))
   saveTileMap()
 }
 
 {
-  const $editTileSetModal = document.querySelector('#editTileSetModal')
+  const $editTileSetModal = document.querySelector("#editTileSetModal")
   const editTileSetModal = new bootstrap.Modal($editTileSetModal)
   const $showEditTileSetDialogButton = document.querySelector(
-    '#showEditTileSetDialogButton'
+    "#showEditTileSetDialogButton",
   )
-  $showEditTileSetDialogButton.addEventListener('click', function () {
+  $showEditTileSetDialogButton.addEventListener("click", function () {
     editTileSetModal.show()
   })
-  $editTileSetModal.addEventListener('show.bs.modal', function () {
+  $editTileSetModal.addEventListener("show.bs.modal", function () {
     const id = $tileSetSelect.value
     const tileSet = tileMap.tileSets[id]
-    $editTileSetModal.querySelector('#editTileSetName').value = tileSet.name
+    $editTileSetModal.querySelector("#editTileSetName").value = tileSet.name
   })
 
-  const $editTileSetForm = $editTileSetModal.querySelector('#editTileSetForm')
-  $editTileSetForm.addEventListener('submit', function (event) {
+  const $editTileSetForm = $editTileSetModal.querySelector("#editTileSetForm")
+  $editTileSetForm.addEventListener("submit", function (event) {
     event.preventDefault()
     const id = $tileSetSelect.value
     const tileSet = tileMap.tileSets[id]
-    const name = $editTileSetModal.querySelector('#editTileSetName').value
+    const name = $editTileSetModal.querySelector("#editTileSetName").value
     tileSet.name = name
     $tileSetSelect.querySelector(`option[value="${id}"]`).textContent = name
     const fileReader = new FileReader()
@@ -1799,26 +1867,34 @@ function removeTileSet(id) {
       editTileSetModal.hide()
       saveTileMap()
     }
-    const file = $editTileSetModal.querySelector('#editTileSetFile').files[0]
+    const file = (
+      $editTileSetModal.querySelector("#editTileSetFile") as HTMLInputElement
+    ).files[0]
     fileReader.readAsDataURL(file)
   })
 }
 
 {
-  document.body.addEventListener('shown.bs.modal', function () {
+  document.body.addEventListener("shown.bs.modal", function () {
     isModalOpen = true
   })
 
-  document.body.addEventListener('hidden.bs.modal', function () {
+  document.body.addEventListener("hidden.bs.modal", function () {
     isModalOpen = false
   })
 }
 
 function showMapFullScreen() {
-  $sidebar.classList.add('d-none')
-  document.querySelector('.app-navbar').classList.add('d-none')
-  document.querySelector('.menu-icon-bar-main').classList.add('d-none')
-  document.querySelector(
-    '#toggleShowFullScreen material-symbols-outlined'
-  ).textContent = 'close_fullscreen'
+  $sidebar.classList.add("d-none")
+  ;(document.querySelector(".app-navbar") as HTMLElement).classList.add(
+    "d-none",
+  )
+  ;(
+    document.querySelector(".menu-icon-bar-main") as HTMLDivElement
+  ).classList.add("d-none")
+  ;(
+    document.querySelector(
+      "#toggleShowFullScreen material-symbols-outlined",
+    ) as HTMLSpanElement
+  ).textContent = "close_fullscreen"
 }

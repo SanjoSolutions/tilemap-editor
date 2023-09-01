@@ -1,137 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tilemap Editor</title>
-    <link href="bootstrap.min.css" rel="stylesheet" />
-    <style>
-      body {
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-        height: 100vh;
-      }
-
-      .app-navbar {
-        border-bottom: 1px solid gainsboro;
-      }
-
-      .menu-icon-bar {
-        background-color: rgb(var(--bs-tertiary-bg-rgb));
-        border-radius: 0 !important;
-        border-bottom: 1px solid gainsboro;
-      }
-
-      .menu-icon-bar button {
-        border-radius: 0;
-      }
-
-      .app-container {
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: row;
-        overflow: hidden;
-      }
-
-      .sidebar {
-        flex: 0 0 200px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .menu-icon-bar-sidebar {
-        flex: 0 0 auto;
-      }
-
-      .menu-icon-bar-main {
-        flex: 0 0 auto;
-      }
-
-      .tile-set-container {
-        flex: 1 1 auto;
-        overflow: auto;
-        position: relative;
-      }
-
-      .tile-hover {
-        border: 1px solid gainsboro;
-        box-sizing: border-box;
-        position: absolute;
-        pointer-events: none;
-      }
-
-      .tile-selected {
-        border: 1px solid black;
-        box-sizing: border-box;
-        position: absolute;
-        pointer-events: none;
-      }
-
-      .slider {
-        flex: 0 0 auto;
-        background-color: gainsboro;
-        width: 1px;
-        position: relative;
-      }
-
-      .slider__drag-area {
-        width: 17px;
-        position: absolute;
-        left: -8px;
-        right: -8px;
-        top: 0;
-        bottom: 0;
-        cursor: col-resize;
-        z-index: 1;
-      }
-
-      .main {
-        flex: 1 1 auto;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-
-      .level {
-        position: fixed;
-        right: 1.5rem;
-        bottom: 1.5rem;
-        width: 32px;
-      }
-
-      .tile-map-container {
-        overflow: auto;
-        background-color: #f1f1f1;
-        flex: 1 1 auto;
-        position: relative;
-      }
-
-      .tile-map {
-        display: block;
-        background-color: white;
-        border-bottom: 1px solid black;
-        border-right: 1px solid black;
-      }
-
-      .selected-area {
-        border: 1px dashed gainsboro;
-        position: absolute;
-        pointer-events: none;
-      }
-
-      #tileSetSelect:focus {
-        box-shadow: none;
-      }
-    </style>
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-    />
-  </head>
-  <body>
+describe("pen tool", function () {
+  test("can draw a single selected tile", function () {
+    document.body.innerHTML = `
     <nav class="app-navbar navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">Tilemap Editor</a>
@@ -317,16 +186,16 @@
             </button>
           </div>
 
-          <!--<div class="btn-group" role="group" aria-label="Options">-->
-          <!--  <button-->
-          <!--    id="toggleShowFullScreen"-->
-          <!--    type="button"-->
-          <!--    class="btn btn-light"-->
-          <!--    title="Toggle show full-screen"-->
-          <!--  >-->
-          <!--    <span class="material-symbols-outlined"> fullscreen </span>-->
-          <!--  </button>-->
-          <!--</div>-->
+          <div class="btn-group" role="group" aria-label="Options">
+            <button
+              id="toggleShowFullScreen"
+              type="button"
+              class="btn btn-light"
+              title="Toggle show full-screen"
+            >
+              <span class="material-symbols-outlined"> fullscreen </span>
+            </button>
+          </div>
         </div>
 
         <div class="tile-map-container">
@@ -479,7 +348,12 @@
           </form>
         </div>
       </div>
-    </div>
-  </body>
-  <script type="module" src="main.js"></script>
-</html>
+    </div>`
+
+    // const app = new App()
+    // app.selectPenTool()
+    // app.selectTileSetTile(0, 0)
+    // app.useToolAt(0, 0)
+    // expectTileAt(app, { row: 0, column: 0 }, { x: 0, y: 0, tileSet: 0 })
+  })
+})
