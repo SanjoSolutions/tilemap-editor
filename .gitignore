@@ -1,6 +1,7 @@
 node_modules
 .DS_Store
 /public/main.js
+/public/main.js.map
 /test-results/
 /playwright-report/
 /playwright/.cache/
