@@ -3,6 +3,7 @@ import { config } from "./esbuild.config.js"
 
 const context = await esbuild.context({
   ...config,
+  sourcemap: true,
   define: {
     "window.IS_DEVELOPMENT": "true",
   },

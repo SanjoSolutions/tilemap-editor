@@ -1,16 +1,14 @@
 import * as bootstrap from "bootstrap"
-import { XMLParser } from "fast-xml-parser"
-import * as path from "node:path"
+import { App } from "./App.js"
 import type { Area } from "./Area.js"
+import type { CellArea } from "./CellArea.js"
 import type { CellPosition } from "./CellPosition.js"
-import type { FromToArea } from "./FromToArea.js"
-import type { Level } from "./Level.js"
 import type { MultiLayerTile } from "./MultiLayerTile.js"
-import type { Point } from "./Point.js"
 import type { Position } from "./Position.js"
 import type { Tile } from "./Tile.js"
-import type { TileMap } from "./TileMap.js"
-import { App } from "./lib.js"
+import { TileLayer } from "./TileLayer.js"
+import { TileMap } from "./TileMap.js"
+import { areDifferent } from "./areDifferent.js"
 
 if (window.IS_DEVELOPMENT) {
   new EventSource("/esbuild").addEventListener("change", () =>
@@ -19,11 +17,25 @@ if (window.IS_DEVELOPMENT) {
 }
 
 const app = new App()
-const levelSerialized = localStorage.getItem("level")
-const DEFAULT_LEVEL: Level = 0
-let level: Level = levelSerialized
-  ? JSON.parse(levelSerialized) ?? DEFAULT_LEVEL
-  : DEFAULT_LEVEL
+let tileSets: Record<number, HTMLImageElement> = {}
+const $level = document.querySelector(".level") as HTMLInputElement
+
+{
+  const levelSerialized = localStorage.getItem("level")
+  if (levelSerialized) {
+    const level = parseInt(levelSerialized, 10)
+    if (level) {
+      app.level.next(level)
+    }
+  }
+}
+
+app.level.subscribe(function (level) {
+  $level.value = String(level)
+  localStorage.setItem("level", String(level))
+  renderTileMap()
+})
+
 const isGridShownSerialized = localStorage.getItem("isGridShown")
 let isModalOpen: boolean = false
 const menuIconBar = document.querySelector(
@@ -49,13 +61,8 @@ let isGridShown: boolean = isGridShownSerialized
   ? JSON.parse(isGridShownSerialized)
   : true
 
-const $level = document.querySelector(".level") as HTMLInputElement
-$level.value = String(level)
-
 $level.addEventListener("change", function (event) {
-  level = Number((event.target as HTMLInputElement).value)
-  localStorage.setItem("level", String(level))
-  renderTileMap()
+  app.level.next(Number((event.target as HTMLInputElement).value))
 })
 
 const $sidebar = document.querySelector(".sidebar") as HTMLDivElement
@@ -96,9 +103,9 @@ const $tileSet = document.querySelector(".tile-set") as HTMLImageElement
 $tileSet.addEventListener("pointermove", function (event) {
   $tileHover.style.display = "block"
   $tileHover.style.left =
-    adjustToStep(event.offsetX, tileMap.tileSize.width) + "px"
+    adjustToStep(event.offsetX, app.tileMap.value.tileSize.width) + "px"
   $tileHover.style.top =
-    adjustToStep(event.offsetY, tileMap.tileSize.height) + "px"
+    adjustToStep(event.offsetY, app.tileMap.value.tileSize.height) + "px"
 })
 
 const $tileSelected = document.querySelector(".tile-selected") as HTMLDivElement
@@ -122,46 +129,45 @@ $tileSet.addEventListener("mouseleave", function () {
 })
 
 let firstPoint: Point | null = null
-let selectedTiles: Area | null = null
 
 function selectTile(event) {
   selectTileSetTile(event.offsetX, event.offsetY)
 }
 
 export function selectTileSetTile(x: number, y: number): void {
-  x = adjustToStep(x, tileMap.tileSize.width)
-  y = adjustToStep(y, tileMap.tileSize.height)
+  x = adjustToStep(x, app.tileMap.value.tileSize.width)
+  y = adjustToStep(y, app.tileMap.value.tileSize.height)
   firstPoint = {
     x,
     y,
   }
-  selectedTiles = {
+  app.selectedTileSetTiles.next({
     x,
     y,
-    width: tileMap.tileSize.width,
-    height: tileMap.tileSize.height,
-  }
+    width: app.tileMap.value.tileSize.width,
+    height: app.tileMap.value.tileSize.height,
+  })
   $tileSelected.style.display = "block"
-  $tileSelected.style.left = selectedTiles.x + "px"
-  $tileSelected.style.top = selectedTiles.y + "px"
-  $tileSelected.style.width = selectedTiles.width + "px"
-  $tileSelected.style.height = selectedTiles.height + "px"
+  $tileSelected.style.left = app.selectedTileSetTiles.value.x + "px"
+  $tileSelected.style.top = app.selectedTileSetTiles.value.y + "px"
+  $tileSelected.style.width = app.selectedTileSetTiles.value.width + "px"
+  $tileSelected.style.height = app.selectedTileSetTiles.value.height + "px"
 }
 
 function expandSelectTiles(event) {
   if (firstPoint) {
-    const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
-    const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
-    selectedTiles = {
+    const x = adjustToStep(event.offsetX, app.tileMap.value.tileSize.width)
+    const y = adjustToStep(event.offsetY, app.tileMap.value.tileSize.height)
+    app.selectedTileSetTiles.next({
       x: Math.min(firstPoint.x, x),
       y: Math.min(firstPoint.y, y),
-      width: Math.abs(x - firstPoint.x) + tileMap.tileSize.width,
-      height: Math.abs(y - firstPoint.y) + tileMap.tileSize.height,
-    }
-    $tileSelected.style.left = selectedTiles.x + "px"
-    $tileSelected.style.top = selectedTiles.y + "px"
-    $tileSelected.style.width = selectedTiles.width + "px"
-    $tileSelected.style.height = selectedTiles.height + "px"
+      width: Math.abs(x - firstPoint.x) + app.tileMap.value.tileSize.width,
+      height: Math.abs(y - firstPoint.y) + app.tileMap.value.tileSize.height,
+    })
+    $tileSelected.style.left = app.selectedTileSetTiles.value.x + "px"
+    $tileSelected.style.top = app.selectedTileSetTiles.value.y + "px"
+    $tileSelected.style.width = app.selectedTileSetTiles.value.width + "px"
+    $tileSelected.style.height = app.selectedTileSetTiles.value.height + "px"
   } else {
     throw new Error("firstPoint is null.")
   }
@@ -185,18 +191,18 @@ const DEFAULT_TILE_HEIGHT = 32
 const DEFAULT_MAP_WIDTH = 16
 const DEFAULT_MAP_HEIGHT = 16
 const tileMapSerialized = localStorage.getItem("tileMap")
-let tileMap: TileMap = tileMapSerialized
-  ? migrateTileMap(JSON.parse(tileMapSerialized))
-  : await createTileMap({
-      width: DEFAULT_MAP_WIDTH,
-      height: DEFAULT_MAP_HEIGHT,
-    })
+app.tileMap.next(
+  tileMapSerialized
+    ? migrateTileMap(parseJSONTileMap(tileMapSerialized))
+    : await createTileMap({
+        width: DEFAULT_MAP_WIDTH,
+        height: DEFAULT_MAP_HEIGHT,
+      }),
+)
 
-let tileSets = {}
-
-for (const [id, tileSet] of Object.entries(tileMap.tileSets)) {
+for (const [id, tileSet] of Object.entries(app.tileMap.value.tileSets)) {
   createImageFromDataURL(tileSet.content).then((image) => {
-    tileSets[id] = image
+    tileSets[Number(id)] = image as HTMLImageElement
     renderTileMap()
   })
 }
@@ -213,7 +219,7 @@ function addOptionToTileSetSelect(id, tileSet) {
 }
 
 $tileSetSelect.innerHTML = ""
-for (const [id, tileSet] of Object.entries(tileMap.tileSets)) {
+for (const [id, tileSet] of Object.entries(app.tileMap.value.tileSets)) {
   addOptionToTileSetSelect(id, tileSet)
 }
 
@@ -225,18 +231,18 @@ for (const [id, tileSet] of Object.entries(tileMap.tileSets)) {
   selectTileSet(selectedTileSetID)
 }
 
-function migrateTileMap(tileMap) {
+function migrateTileMap(tileMap: TileMap): TileMap {
   if (!tileMap.tileSets) {
     tileMap.tileSets = {}
     tileMap.tileSets[0] = {
       name: "tileset.png",
-      content: localStorage.getItem("tileSetUrl"),
+      content: localStorage.getItem("tileSetUrl") || "",
     }
   }
 
-  if (!tileMap.tiles[0][0]?.hasOwnProperty("tileSet")) {
+  if (!tileMap.tiles[0].tiles[0]?.hasOwnProperty("tileSet")) {
     for (const levelTileMap of tileMap.tiles) {
-      for (const tile of levelTileMap) {
+      for (const tile of levelTileMap.tiles) {
         if (tile) {
           tile.tileSet = 0
         }
@@ -247,14 +253,14 @@ function migrateTileMap(tileMap) {
   return tileMap
 }
 
-$canvas.width = tileMap.size.width
-$canvas.height = tileMap.size.height
+$canvas.width = app.tileMap.value.size.width
+$canvas.height = app.tileMap.value.size.height
 
-$tileHover.style.width = tileMap.tileSize.width + "px"
-$tileHover.style.height = tileMap.tileSize.height + "px"
+$tileHover.style.width = app.tileMap.value.tileSize.width + "px"
+$tileHover.style.height = app.tileMap.value.tileSize.height + "px"
 
-$tileSelected.style.width = tileMap.tileSize.width + "px"
-$tileSelected.style.height = tileMap.tileSize.height + "px"
+$tileSelected.style.width = app.tileMap.value.tileSize.width + "px"
+$tileSelected.style.height = app.tileMap.value.tileSize.height + "px"
 
 renderGrid()
 
@@ -268,16 +274,19 @@ if (tileMapSerialized) {
   }
 }
 
-function retrieveTile(position) {
-  const row = position.y / tileMap.tileSize.height
-  const column = position.x / tileMap.tileSize.width
+function retrieveTile(position: Position): MultiLayerTile {
+  const row =
+    adjustToStep(position.y, app.tileMap.value.tileSize.height) /
+    app.tileMap.value.tileSize.height
+  const column =
+    adjustToStep(position.x, app.tileMap.value.tileSize.width) /
+    app.tileMap.value.tileSize.width
   return retrieveTile2({ row, column })
 }
 
-function retrieveTile2({ row, column }) {
-  const index = calculateIndex({ row, column })
-  return tileMap.tiles.map((levelTileMap) =>
-    levelTileMap ? levelTileMap[index] : null,
+function retrieveTile2(position: CellPosition): MultiLayerTile {
+  return app.tileMap.value.tiles.map((tileLayer) =>
+    tileLayer ? tileLayer.retrieveTile(position) : null,
   )
 }
 
@@ -298,7 +307,7 @@ function convertEventToPosition(event: PointerEvent): Position {
 }
 
 export function useToolAt(x, y): void {
-  if (app.activeTool === "pen") {
+  if (app.activeTool.value === "pen") {
   }
 }
 
@@ -306,13 +315,13 @@ function doPointerDownOnTileMap(point: Point): void {
   isPointerDownInTileMap = true
 
   if (!isInPasteMode) {
-    if (app.activeTool === "fill") {
+    if (app.activeTool.value === "fill") {
       fill(point)
     } else {
       selectTileInTileMap(point)
 
-      if (selectedTiles) {
-        if (app.activeTool === "pen") {
+      if (app.selectedTileSetTiles.value) {
+        if (app.activeTool.value === "pen") {
           setTiles(point)
         }
       }
@@ -323,11 +332,11 @@ function doPointerDownOnTileMap(point: Point): void {
 function previewFill(point: Point): void {
   doAFillMethod(point, function (tile, selectedTile) {
     const replacements: MultiLayerTile = []
-    replacements[level] = selectedTile
+    replacements[app.level.value] = selectedTile
     renderTile(
       {
-        x: tile.column * tileMap.tileSize.width,
-        y: tile.row * tileMap.tileSize.height,
+        x: tile.column * app.tileMap.value.tileSize.width,
+        y: tile.row * app.tileMap.value.tileSize.height,
       },
       replacements,
     )
@@ -343,34 +352,27 @@ function fill(point: Point): void {
   saveTileMap()
 }
 
-const backups = []
+const backups: TileMap[] = []
 
 function backUpMap() {
-  backups.push(copyMap(tileMap))
-}
-
-function copyMap(tileMap) {
-  return {
-    size: { ...tileMap.size },
-    tileSize: { ...tileMap.tileSize },
-    tiles: tileMap.tiles.map((tiles) => Array.from(tiles)),
-  }
+  backups.push(app.tileMap.value.copy())
 }
 
 function doAFillMethod(position: Position, fn) {
   const origin = {
     row:
-      adjustToStep(position.y, tileMap.tileSize.height) /
-      tileMap.tileSize.height,
+      adjustToStep(position.y, app.tileMap.value.tileSize.height) /
+      app.tileMap.value.tileSize.height,
     column:
-      adjustToStep(position.x, tileMap.tileSize.width) / tileMap.tileSize.width,
+      adjustToStep(position.x, app.tileMap.value.tileSize.width) /
+      app.tileMap.value.tileSize.width,
   }
 
-  const originTileBeforeFill = retrieveTile2(origin)[level]
+  const originTileBeforeFill = retrieveTile2(origin)[app.level.value]
 
   const selectedTile = {
-    x: selectedTiles.x,
-    y: selectedTiles.y,
+    x: app.selectedTileSetTiles.value.x,
+    y: app.selectedTileSetTiles.value.y,
     tileSet: retrieveSelectedTileSetID(),
   }
 
@@ -417,14 +419,16 @@ function retrieveNeighbors(tile) {
       column: tile.column,
     })
   }
-  const numberOfColumns = tileMap.size.width / tileMap.tileSize.width
+  const numberOfColumns =
+    app.tileMap.value.size.width / app.tileMap.value.tileSize.width
   if (tile.column < numberOfColumns - 1) {
     neighbors.push({
       row: tile.row,
       column: tile.column + 1,
     })
   }
-  const numberOfRows = tileMap.size.height / tileMap.tileSize.height
+  const numberOfRows =
+    app.tileMap.value.size.height / app.tileMap.value.tileSize.height
   if (tile.row < numberOfRows - 1) {
     neighbors.push({
       row: tile.row + 1,
@@ -442,15 +446,15 @@ function retrieveNeighbors(tile) {
 
 function isTileSetTo(tile, setTile) {
   const a = retrieveTile2(tile)
-  const b = a ? a[level] ?? null : null
+  const b = a ? a[app.level.value] ?? null : null
   return (
     (!b && !setTile) || (b && setTile && b.x === setTile.x && b.y === setTile.y)
   )
 }
 
 function selectTileInTileMap({ x, y }: Position): void {
-  x = adjustToStep(x, tileMap.tileSize.width)
-  y = adjustToStep(y, tileMap.tileSize.height)
+  x = adjustToStep(x, app.tileMap.value.tileSize.width)
+  y = adjustToStep(y, app.tileMap.value.tileSize.height)
   firstPointTileMap = {
     x,
     y,
@@ -459,11 +463,11 @@ function selectTileInTileMap({ x, y }: Position): void {
   selectedTilesInTileMap = {
     x,
     y,
-    width: tileMap.tileSize.width,
-    height: tileMap.tileSize.height,
+    width: app.tileMap.value.tileSize.width,
+    height: app.tileMap.value.tileSize.height,
   }
 
-  if (app.activeTool === "selection") {
+  if (app.activeTool.value === "selection") {
     updateSelectedArea()
   }
 }
@@ -484,12 +488,12 @@ function preview9SliceMade() {
       $tileSet,
       tile.x,
       tile.y,
-      tileMap.tileSize.width,
-      tileMap.tileSize.height,
-      selectedTilesInTileMap.x + column * tileMap.tileSize.width,
-      selectedTilesInTileMap.y + row * tileMap.tileSize.height,
-      tileMap.tileSize.width,
-      tileMap.tileSize.height,
+      app.tileMap.value.tileSize.width,
+      app.tileMap.value.tileSize.height,
+      selectedTilesInTileMap.x + column * app.tileMap.value.tileSize.width,
+      selectedTilesInTileMap.y + row * app.tileMap.value.tileSize.height,
+      app.tileMap.value.tileSize.width,
+      app.tileMap.value.tileSize.height,
     )
   })
 }
@@ -497,19 +501,23 @@ function preview9SliceMade() {
 function previewArea() {
   renderTileMap()
 
-  const numberOfRows = selectedTiles.height / tileMap.tileSize.height
-  const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
+  const numberOfRows =
+    app.selectedTileSetTiles.value.height / app.tileMap.value.tileSize.height
+  const numberOfColumns =
+    app.selectedTileSetTiles.value.width / app.tileMap.value.tileSize.width
   doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
     context.drawImage(
       $tileSet,
-      selectedTiles.x + (column % numberOfColumns) * tileMap.tileSize.width,
-      selectedTiles.y + (row % numberOfRows) * tileMap.tileSize.height,
-      tileMap.tileSize.width,
-      tileMap.tileSize.height,
-      selectedTilesInTileMap.x + column * tileMap.tileSize.width,
-      selectedTilesInTileMap.y + row * tileMap.tileSize.height,
-      tileMap.tileSize.width,
-      tileMap.tileSize.height,
+      app.selectedTileSetTiles.value.x +
+        (column % numberOfColumns) * app.tileMap.value.tileSize.width,
+      app.selectedTileSetTiles.value.y +
+        (row % numberOfRows) * app.tileMap.value.tileSize.height,
+      app.tileMap.value.tileSize.width,
+      app.tileMap.value.tileSize.height,
+      selectedTilesInTileMap.x + column * app.tileMap.value.tileSize.width,
+      selectedTilesInTileMap.y + row * app.tileMap.value.tileSize.height,
+      app.tileMap.value.tileSize.width,
+      app.tileMap.value.tileSize.height,
     )
   })
 }
@@ -520,8 +528,8 @@ $canvas.addEventListener("pointermove", function (event) {
   lastPointerPosition = convertEventToPosition(event)
 
   if (isPointerDownInTileMap) {
-    if (app.activeTool === "area") {
-      if (selectedTiles) {
+    if (app.activeTool.value === "area") {
+      if (app.selectedTileSetTiles.value) {
         expandSelectTilesInTileMap(event)
         if (seemsThat9SliceIsSelected()) {
           preview9SliceMade()
@@ -531,26 +539,26 @@ $canvas.addEventListener("pointermove", function (event) {
           renderGrid()
         }
       }
-    } else if (app.activeTool === "pen") {
-      if (selectedTiles) {
+    } else if (app.activeTool.value === "pen") {
+      if (app.selectedTileSetTiles.value) {
         setTiles(lastPointerPosition)
         renderGrid()
       }
-    } else if (app.activeTool === "selection") {
+    } else if (app.activeTool.value === "selection") {
       expandSelectTilesInTileMap(event)
       updateSelectedArea()
     }
   } else if (isInPasteMode) {
     renderTileMap()
     previewPaste()
-  } else if (selectedTiles) {
-    if (app.activeTool === "pen") {
+  } else if (app.selectedTileSetTiles.value) {
+    if (app.activeTool.value === "pen") {
       const previousPreviewTiles = previewTiles
       previewTiles = {
-        x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-        y: adjustToStep(event.offsetY, tileMap.tileSize.height),
-        width: selectedTiles.width,
-        height: selectedTiles.height,
+        x: adjustToStep(event.offsetX, app.tileMap.value.tileSize.width),
+        y: adjustToStep(event.offsetY, app.tileMap.value.tileSize.height),
+        width: app.selectedTileSetTiles.value.width,
+        height: app.selectedTileSetTiles.value.height,
       }
       if (
         !previousPreviewTiles ||
@@ -562,13 +570,13 @@ $canvas.addEventListener("pointermove", function (event) {
         renderPreviewTiles()
         renderGrid()
       }
-    } else if (app.activeTool === "area") {
+    } else if (app.activeTool.value === "area") {
       const previousPreviewTiles = previewTiles
       previewTiles = {
-        x: adjustToStep(event.offsetX, tileMap.tileSize.width),
-        y: adjustToStep(event.offsetY, tileMap.tileSize.height),
-        width: tileMap.tileSize.width,
-        height: tileMap.tileSize.height,
+        x: adjustToStep(event.offsetX, app.tileMap.value.tileSize.width),
+        y: adjustToStep(event.offsetY, app.tileMap.value.tileSize.height),
+        width: app.tileMap.value.tileSize.width,
+        height: app.tileMap.value.tileSize.height,
       }
       if (
         !previousPreviewTiles ||
@@ -580,7 +588,7 @@ $canvas.addEventListener("pointermove", function (event) {
         renderPreviewTiles()
         renderGrid()
       }
-    } else if (app.activeTool === "fill") {
+    } else if (app.activeTool.value === "fill") {
       renderTileMap()
       previewFill(convertEventToPosition(event))
       renderGrid()
@@ -589,20 +597,23 @@ $canvas.addEventListener("pointermove", function (event) {
 })
 
 function expandSelectTilesInTileMap(event) {
-  const x = adjustToStep(event.offsetX, tileMap.tileSize.width)
-  const y = adjustToStep(event.offsetY, tileMap.tileSize.height)
+  const x = adjustToStep(event.offsetX, app.tileMap.value.tileSize.width)
+  const y = adjustToStep(event.offsetY, app.tileMap.value.tileSize.height)
   selectedTilesInTileMap = {
     x: Math.min(firstPointTileMap.x, x),
     y: Math.min(firstPointTileMap.y, y),
-    width: Math.abs(x - firstPointTileMap.x) + tileMap.tileSize.width,
-    height: Math.abs(y - firstPointTileMap.y) + tileMap.tileSize.height,
+    width: Math.abs(x - firstPointTileMap.x) + app.tileMap.value.tileSize.width,
+    height:
+      Math.abs(y - firstPointTileMap.y) + app.tileMap.value.tileSize.height,
   }
 }
 
 function seemsThat9SliceIsSelected() {
   return (
-    selectedTiles.width === 3 * tileMap.tileSize.height &&
-    selectedTiles.height === 3 * tileMap.tileSize.height
+    app.selectedTileSetTiles.value.width ===
+      3 * app.tileMap.value.tileSize.height &&
+    app.selectedTileSetTiles.value.height ===
+      3 * app.tileMap.value.tileSize.height
   )
 }
 
@@ -617,7 +628,7 @@ window.addEventListener("pointerup", function () {
   isPointerDownInTileMap = false
 
   if (wasPointerDownInTileMap) {
-    if (app.activeTool === "area") {
+    if (app.activeTool.value === "area") {
       if (seemsThat9SliceIsSelected()) {
         setTilesWith9SliceMethod()
       } else {
@@ -627,7 +638,7 @@ window.addEventListener("pointerup", function () {
   }
 
   firstPointTileMap = null
-  if (app.activeTool !== "selection") {
+  if (app.activeTool.value !== "selection") {
     selectedTilesInTileMap = null
   }
 })
@@ -645,14 +656,20 @@ function putSelectedTilesOnMap() {
 function area() {
   backUpMap()
 
-  const numberOfRows = selectedTiles.height / tileMap.tileSize.height
-  const numberOfColumns = selectedTiles.width / tileMap.tileSize.width
-  const baseRow = selectedTilesInTileMap.y / tileMap.tileSize.height
-  const baseColumn = selectedTilesInTileMap.x / tileMap.tileSize.width
+  const numberOfRows =
+    app.selectedTileSetTiles.value.height / app.tileMap.value.tileSize.height
+  const numberOfColumns =
+    app.selectedTileSetTiles.value.width / app.tileMap.value.tileSize.width
+  const baseRow = selectedTilesInTileMap.y / app.tileMap.value.tileSize.height
+  const baseColumn = selectedTilesInTileMap.x / app.tileMap.value.tileSize.width
   doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
     const selectedTile = {
-      x: selectedTiles.x + (column % numberOfColumns) * tileMap.tileSize.width,
-      y: selectedTiles.y + (row % numberOfRows) * tileMap.tileSize.height,
+      x:
+        app.selectedTileSetTiles.value.x +
+        (column % numberOfColumns) * app.tileMap.value.tileSize.width,
+      y:
+        app.selectedTileSetTiles.value.y +
+        (row % numberOfRows) * app.tileMap.value.tileSize.height,
       tileSet: retrieveSelectedTileSetID(),
     }
     setTileOnCurrentLevel(
@@ -668,11 +685,11 @@ function setTilesWith9SliceMethod() {
   backUpMap()
 
   const baseRow =
-    adjustToStep(selectedTilesInTileMap.y, tileMap.tileSize.height) /
-    tileMap.tileSize.height
+    adjustToStep(selectedTilesInTileMap.y, app.tileMap.value.tileSize.height) /
+    app.tileMap.value.tileSize.height
   const baseColumn =
-    adjustToStep(selectedTilesInTileMap.x, tileMap.tileSize.width) /
-    tileMap.tileSize.width
+    adjustToStep(selectedTilesInTileMap.x, app.tileMap.value.tileSize.width) /
+    app.tileMap.value.tileSize.width
 
   do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
     setTileOnCurrentLevel(
@@ -707,32 +724,45 @@ function do9SliceMethodWithSelectedTiles(fn) {
     let selectedTilesY
 
     if (row === 0 && column === 0) {
-      selectedTilesX = selectedTiles.x
-      selectedTilesY = selectedTiles.y
+      selectedTilesX = app.selectedTileSetTiles.value.x
+      selectedTilesY = app.selectedTileSetTiles.value.y
     } else if (row === 0 && column === numberOfColumns - 1) {
-      ;(selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width),
-        (selectedTilesY = selectedTiles.y)
+      ;(selectedTilesX =
+        app.selectedTileSetTiles.value.x +
+        2 * app.tileMap.value.tileSize.width),
+        (selectedTilesY = app.selectedTileSetTiles.value.y)
     } else if (row === numberOfRows - 1 && column === numberOfColumns - 1) {
-      selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width
-      selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+      selectedTilesX =
+        app.selectedTileSetTiles.value.x + 2 * app.tileMap.value.tileSize.width
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 2 * app.tileMap.value.tileSize.height
     } else if (row === numberOfRows - 1 && column === 0) {
-      selectedTilesX = selectedTiles.x
-      selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+      selectedTilesX = app.selectedTileSetTiles.value.x
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 2 * app.tileMap.value.tileSize.height
     } else if (row === 0) {
-      selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
-      selectedTilesY = selectedTiles.y
+      selectedTilesX =
+        app.selectedTileSetTiles.value.x + 1 * app.tileMap.value.tileSize.width
+      selectedTilesY = app.selectedTileSetTiles.value.y
     } else if (row === numberOfRows - 1) {
-      selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
-      selectedTilesY = selectedTiles.y + 2 * tileMap.tileSize.height
+      selectedTilesX =
+        app.selectedTileSetTiles.value.x + 1 * app.tileMap.value.tileSize.width
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 2 * app.tileMap.value.tileSize.height
     } else if (column === 0) {
-      selectedTilesX = selectedTiles.x
-      selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+      selectedTilesX = app.selectedTileSetTiles.value.x
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 1 * app.tileMap.value.tileSize.height
     } else if (column === numberOfColumns - 1) {
-      selectedTilesX = selectedTiles.x + 2 * tileMap.tileSize.width
-      selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+      selectedTilesX =
+        app.selectedTileSetTiles.value.x + 2 * app.tileMap.value.tileSize.width
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 1 * app.tileMap.value.tileSize.height
     } else {
-      selectedTilesX = selectedTiles.x + 1 * tileMap.tileSize.width
-      selectedTilesY = selectedTiles.y + 1 * tileMap.tileSize.height
+      selectedTilesX =
+        app.selectedTileSetTiles.value.x + 1 * app.tileMap.value.tileSize.width
+      selectedTilesY =
+        app.selectedTileSetTiles.value.y + 1 * app.tileMap.value.tileSize.height
     }
 
     fn(
@@ -747,11 +777,11 @@ function do9SliceMethodWithSelectedTiles(fn) {
 }
 
 function calculateNumberOfRows(height) {
-  return height / tileMap.tileSize.height
+  return height / app.tileMap.value.tileSize.height
 }
 
 function calculateNumberOfColumns(width) {
-  return width / tileMap.tileSize.width
+  return width / app.tileMap.value.tileSize.width
 }
 
 const toggleGridButton = menuIconBar.querySelector(".toggle-grid-button")
@@ -783,7 +813,7 @@ function updateToolButtonStates() {
 }
 
 function updateToolButton(button, tool) {
-  if (app.activeTool === tool) {
+  if (app.activeTool.value === tool) {
     button.classList.add("active")
   } else {
     button.classList.remove("active")
@@ -827,8 +857,8 @@ function activateSelectTool() {
 }
 
 function changeTool(tool) {
-  if (tool !== app.activeTool) {
-    app.activeTool = tool
+  if (tool !== app.activeTool.value) {
+    app.activeTool.next(tool)
     updateToolButtonStates()
     $selectedArea.style.display = "none"
   }
@@ -866,7 +896,7 @@ function updateRenderOnlyCurrentLevelButton() {
 }
 
 const saveTileMap = debounce(function () {
-  localStorage.setItem("tileMap", JSON.stringify(tileMap))
+  localStorage.setItem("tileMap", JSON.stringify(app.tileMap.value))
 })
 
 const $tileMapSettingsModal = document.querySelector("#tilemapSettings")
@@ -878,9 +908,9 @@ function showEditMapDialog() {
 
 $tileMapSettingsModal.addEventListener("show.bs.modal", function () {
   $tileMapSettingsModal.querySelector("#tilemapSettingsWidth").value =
-    tileMap.size.width / tileMap.tileSize.width
+    app.tileMap.value.size.width / app.tileMap.value.tileSize.width
   $tileMapSettingsModal.querySelector("#tilemapSettingsHeight").value =
-    tileMap.size.height / tileMap.tileSize.height
+    app.tileMap.value.size.height / app.tileMap.value.tileSize.height
 })
 
 $tileMapSettingsModal.addEventListener("shown.bs.modal", function () {
@@ -900,12 +930,12 @@ $tileMapSettingsModal
     const height = parseInt(formData.get("height"), 10)
 
     resizeMap({
-      width: width * tileMap.tileSize.width,
-      height: height * tileMap.tileSize.height,
+      width: width * app.tileMap.value.tileSize.width,
+      height: height * app.tileMap.value.tileSize.height,
     })
 
-    $canvas.width = tileMap.size.width
-    $canvas.height = tileMap.size.height
+    $canvas.width = app.tileMap.value.size.width
+    $canvas.height = app.tileMap.value.size.height
 
     renderTileMap()
 
@@ -944,13 +974,15 @@ $tileMapSettingsModal
       const width = parseInt(formData.get("width"), 10)
       const height = parseInt(formData.get("height"), 10)
 
-      tileMap = await createTileMap({
-        width,
-        height,
-      })
+      app.tileMap.next(
+        await createTileMap({
+          width,
+          height,
+        }),
+      )
 
-      $canvas.width = tileMap.size.width
-      $canvas.height = tileMap.size.height
+      $canvas.width = app.tileMap.value.size.width
+      $canvas.height = app.tileMap.value.size.height
 
       localStorage.removeItem("openFileName")
 
@@ -963,23 +995,21 @@ $tileMapSettingsModal
 }
 
 async function createTileMap({ width, height }) {
-  return {
-    size: {
-      width: width * DEFAULT_TILE_WIDTH,
-      height: height * DEFAULT_TILE_HEIGHT,
-    },
-    tileSize: {
-      width: DEFAULT_TILE_WIDTH,
-      height: DEFAULT_TILE_HEIGHT,
-    },
-    tileSets: {
-      0: {
-        name: "tileset.png",
-        content: await loadFileAsDataUrl("tileset.png"),
-      },
-    },
-    tiles: [new Array(width * height)],
+  const tileMap = new TileMap()
+  tileMap.size = {
+    width: width * DEFAULT_TILE_WIDTH,
+    height: height * DEFAULT_TILE_HEIGHT,
   }
+  tileMap.tileSize = {
+    width: DEFAULT_TILE_WIDTH,
+    height: DEFAULT_TILE_HEIGHT,
+  }
+  tileMap.tileSets[0] = {
+    name: "tileset.png",
+    content: await loadFileAsDataUrl("tileset.png"),
+  }
+  tileMap.tiles[0] = new TileLayer({ width, height })
+  return tileMap
 }
 
 async function loadFileAsDataUrl(url: string): Promise<string> {
@@ -995,51 +1025,34 @@ async function loadFileAsDataUrl(url: string): Promise<string> {
   })
 }
 
-function resizeMap({ width, height }) {
+function resizeMap(size: Size): void {
   backUpMap()
-
-  const oldNumberOfRows = Math.ceil(
-    tileMap.size.height / tileMap.tileSize.height,
-  )
-  const oldNumberOfColumns = Math.ceil(
-    tileMap.size.width / tileMap.tileSize.width,
-  )
-  const numberOfRows = Math.ceil(height / tileMap.tileSize.height)
-  const numberOfColumns = Math.ceil(width / tileMap.tileSize.width)
-  tileMap.tiles = tileMap.tiles.map(function (oldTiles) {
-    const updatedTiles = new Array(numberOfRows * numberOfColumns)
-    for (let row = 0; row < Math.min(oldNumberOfRows, numberOfRows); row++) {
-      const startIndex = row * oldNumberOfColumns
-      for (
-        let index = 0;
-        index < Math.min(oldNumberOfColumns, numberOfColumns);
-        index++
-      ) {
-        updatedTiles[row * numberOfColumns + index] =
-          oldTiles[startIndex + index]
-      }
-    }
-    return updatedTiles
-  })
-  tileMap.size.width = width
-  tileMap.size.height = height
+  app.resizeTileMap(size)
 }
 
 function setTiles({ x, y }: Point) {
   backUpMap()
 
-  const baseX = adjustToStep(x, tileMap.tileSize.width)
-  const baseY = adjustToStep(y, tileMap.tileSize.height)
+  const baseX = adjustToStep(x, app.tileMap.value.tileSize.width)
+  const baseY = adjustToStep(y, app.tileMap.value.tileSize.height)
 
   let somethingHasChanged = false
-  for (let y = 0; y < selectedTiles.height; y += tileMap.tileSize.height) {
-    for (let x = 0; x < selectedTiles.width; x += tileMap.tileSize.width) {
-      const row = (baseY + y) / tileMap.tileSize.height
-      const column = (baseX + x) / tileMap.tileSize.width
+  for (
+    let y = 0;
+    y < app.selectedTileSetTiles.value.height;
+    y += app.tileMap.value.tileSize.height
+  ) {
+    for (
+      let x = 0;
+      x < app.selectedTileSetTiles.value.width;
+      x += app.tileMap.value.tileSize.width
+    ) {
+      const row = (baseY + y) / app.tileMap.value.tileSize.height
+      const column = (baseX + x) / app.tileMap.value.tileSize.width
 
       const tile = {
-        x: selectedTiles.x + x,
-        y: selectedTiles.y + y,
+        x: app.selectedTileSetTiles.value.x + x,
+        y: app.selectedTileSetTiles.value.y + y,
         tileSet: retrieveSelectedTileSetID(),
       }
 
@@ -1059,51 +1072,34 @@ function setTiles({ x, y }: Point) {
 }
 
 function calculateIndex({ row, column }) {
-  return row * Math.ceil(tileMap.size.width / tileMap.tileSize.width) + column
+  return (
+    row *
+      Math.ceil(
+        app.tileMap.value.size.width / app.tileMap.value.tileSize.width,
+      ) +
+    column
+  )
 }
 
-function setTileOnCurrentLevel({ row, column }, tile) {
-  return setTile({ row, column }, tile, level)
+function setTileOnCurrentLevel(position: CellPosition, tile: Tile) {
+  return app.currentLevelTileLayer.setTile(position, tile)
 }
 
-function setTile({ row, column }, tile, level) {
-  const index = calculateIndex({ row, column })
-  const previousTile = tileMap.tiles[level] && tileMap.tiles[level][index]
-  if (!previousTile || areDifferent(previousTile, tile)) {
-    if (!tileMap.tiles[level]) {
-      tileMap.tiles[level] = new Array(
-        retrieveNumberOfColumns(tileMap) * retrieveNumberOfRows(tileMap),
-      )
-    }
-    tileMap.tiles[level][index] = tile
-    return true
-  } else {
-    return false
-  }
-}
-
-function setMultiLayerTile({ row, column }, multiLayerTile) {
-  let hasSomethingChanged = false
-  for (let level = 0; level < multiLayerTile.length; level++) {
-    const tile = multiLayerTile[level]
-    const hasChanged = setTile({ row, column }, tile, level)
-    hasSomethingChanged ||= hasChanged
-  }
-
-  return hasSomethingChanged
-}
-
-function retrieveNumberOfRows(tileMap) {
-  return Math.ceil(tileMap.size.height / tileMap.tileSize.height)
-}
-
-function retrieveNumberOfColumns(tileMap) {
-  return Math.ceil(tileMap.size.width / tileMap.tileSize.width)
+function setTile(position: CellPosition, tile: Tile, level: number) {
+  return app.tileMap.value.tiles[level].setTile(position, tile)
 }
 
 function renderTiles(area) {
-  for (let y = area.y; y < area.y + area.height; y += tileMap.tileSize.height) {
-    for (let x = area.x; x < area.x + area.width; x += tileMap.tileSize.width) {
+  for (
+    let y = area.y;
+    y < area.y + area.height;
+    y += app.tileMap.value.tileSize.height
+  ) {
+    for (
+      let x = area.x;
+      x < area.x + area.width;
+      x += app.tileMap.value.tileSize.width
+    ) {
       renderTile({
         x,
         y,
@@ -1112,23 +1108,23 @@ function renderTiles(area) {
   }
 }
 
-function renderTile(position, replacements?: MultiLayerTile) {
+function renderTile(position: Position, replacements?: MultiLayerTile) {
   const tile = retrieveTile(position)
   context.clearRect(
     position.x,
     position.y,
-    tileMap.tileSize.width,
-    tileMap.tileSize.height,
+    app.tileMap.value.tileSize.width,
+    app.tileMap.value.tileSize.height,
   )
   if (tile) {
     context.save()
-    function a(level2) {
+    function a(level2: number) {
       const tileOnLayer =
         replacements && replacements[level2]
           ? replacements[level2]
           : tile[level2]
       if (tileOnLayer) {
-        context.globalAlpha = level2 > level ? 0.4 : 1
+        context.globalAlpha = level2 > app.level.value ? 0.4 : 1
         const image =
           typeof tileOnLayer.tileSet === "number"
             ? tileSets[tileOnLayer.tileSet]
@@ -1138,22 +1134,22 @@ function renderTile(position, replacements?: MultiLayerTile) {
             image,
             tileOnLayer.x,
             tileOnLayer.y,
-            tileMap.tileSize.width,
-            tileMap.tileSize.height,
+            app.tileMap.value.tileSize.width,
+            app.tileMap.value.tileSize.height,
             position.x,
             position.y,
-            tileMap.tileSize.width,
-            tileMap.tileSize.height,
+            app.tileMap.value.tileSize.width,
+            app.tileMap.value.tileSize.height,
           )
         }
       }
     }
     if (renderOnlyCurrentLevel) {
-      a(level)
+      a(app.level.value)
     } else {
       for (
         let level2 = 0;
-        level2 <= Math.max(tile.length - 1, level);
+        level2 <= Math.max(tile.length - 1, app.level.value);
         level2++
       ) {
         a(level2)
@@ -1176,10 +1172,10 @@ async function createImageFromDataURL(dataURL) {
 }
 
 function renderSelectedTiles(area, selectedTiles) {
-  for (let y = 0; y < area.height; y += tileMap.tileSize.height) {
-    for (let x = 0; x < area.width; x += tileMap.tileSize.width) {
+  for (let y = 0; y < area.height; y += app.tileMap.value.tileSize.height) {
+    for (let x = 0; x < area.width; x += app.tileMap.value.tileSize.width) {
       const replacements = []
-      replacements[level] = {
+      replacements[app.level.value] = {
         x: selectedTiles.x + x,
         y: selectedTiles.y + y,
       }
@@ -1201,27 +1197,26 @@ function renderEmptyTile(position) {
   context.fillRect(
     position.x,
     position.y,
-    tileMap.tileSize.width,
-    tileMap.tileSize.height,
-  )
-}
-
-function areDifferent(a, b) {
-  return (
-    a.x !== b.x ||
-    a.y !== b.y ||
-    ((a.width || b.width) && a.width !== b.width) ||
-    ((a.height || b.height) && a.height !== b.height)
+    app.tileMap.value.tileSize.width,
+    app.tileMap.value.tileSize.height,
   )
 }
 
 function renderPreviewTiles() {
-  renderSelectedTiles(previewTiles, selectedTiles)
+  renderSelectedTiles(previewTiles, app.selectedTileSetTiles.value)
 }
 
 function renderTileMap() {
-  for (let y = 0; y < tileMap.size.height; y += tileMap.tileSize.height) {
-    for (let x = 0; x < tileMap.size.width; x += tileMap.tileSize.width) {
+  for (
+    let y = 0;
+    y < app.tileMap.value.size.height;
+    y += app.tileMap.value.tileSize.height
+  ) {
+    for (
+      let x = 0;
+      x < app.tileMap.value.size.width;
+      x += app.tileMap.value.tileSize.width
+    ) {
       renderTile({ x, y })
     }
   }
@@ -1234,19 +1229,19 @@ function renderGrid() {
     context.fillStyle = "black"
 
     for (
-      let y = tileMap.tileSize.height;
-      y < tileMap.size.height;
-      y += tileMap.tileSize.height
+      let y = app.tileMap.value.tileSize.height;
+      y < app.tileMap.value.size.height;
+      y += app.tileMap.value.tileSize.height
     ) {
-      context.fillRect(0, y - 1, tileMap.size.width, 2)
+      context.fillRect(0, y - 1, app.tileMap.value.size.width, 2)
     }
 
     for (
-      let x = tileMap.tileSize.width;
-      x < tileMap.size.width;
-      x += tileMap.tileSize.width
+      let x = app.tileMap.value.tileSize.width;
+      x < app.tileMap.value.size.width;
+      x += app.tileMap.value.tileSize.width
     ) {
-      context.fillRect(x, 0, 2, tileMap.size.height)
+      context.fillRect(x, 0, 2, app.tileMap.value.size.height)
     }
   }
 }
@@ -1308,21 +1303,20 @@ async function loadTileMap() {
     const file = await fileHandle.getFile()
     const content = await file.text()
     if (extension === ".json") {
-      tileMap = parseJSONTileMap(content)
+      app.tileMap.next(parseJSONTileMap(content))
     } else if (extension === ".tmx") {
-      tileMap = parseTiledTileMap(content)
+      app.tileMap.next(parseTiledTileMap(content))
     }
-    level = tileMap.tiles.length - 1
-    $level.value = level
+    app.level.next(app.tileMap.value.tiles.length - 1)
 
-    $canvas.width = tileMap.size.width
-    $canvas.height = tileMap.size.height
+    $canvas.width = app.tileMap.value.size.width
+    $canvas.height = app.tileMap.value.size.height
 
-    $tileHover.style.width = tileMap.tileSize.width + "px"
-    $tileHover.style.height = tileMap.tileSize.height + "px"
+    $tileHover.style.width = app.tileMap.value.tileSize.width + "px"
+    $tileHover.style.height = app.tileMap.value.tileSize.height + "px"
 
-    $tileSelected.style.width = tileMap.tileSize.width + "px"
-    $tileSelected.style.height = tileMap.tileSize.height + "px"
+    $tileSelected.style.width = app.tileMap.value.tileSize.width + "px"
+    $tileSelected.style.height = app.tileMap.value.tileSize.height + "px"
 
     renderTileMap()
 
@@ -1331,7 +1325,14 @@ async function loadTileMap() {
 }
 
 function parseJSONTileMap(content) {
-  return JSON.parse(content)
+  const tileMap = new TileMap()
+  Object.assign(tileMap, JSON.parse(content))
+  tileMap.tiles = tileMap.tiles.map((rawTileLayer) => {
+    const tileLayer = new TileLayer(rawTileLayer.size)
+    tileLayer.tiles = rawTileLayer.tiles
+    return tileLayer
+  })
+  return tileMap
 }
 
 function parseTiledTileMap(content) {
@@ -1340,13 +1341,12 @@ function parseTiledTileMap(content) {
     attributeNamePrefix: "",
   })
   const data = parser.parse(content)
-  debugger
   const map = data.map
   const tileMap = createTileMap({
     width: parseInt(map.width, 10),
     height: parseInt(map.height, 10),
   })
-  tileMap.tiles = map.layer.map(function (layer) {
+  app.tileMap.value.tiles = map.layer.map(function (layer) {
     layer.data["#text"].split(",").map((value) => parseInt(value, 10))
   })
 }
@@ -1367,7 +1367,7 @@ async function saveMap() {
   }
   if (handle) {
     const stream = await handle.createWritable()
-    await stream.write(JSON.stringify(tileMap, null, 2))
+    await stream.write(JSON.stringify(app.tileMap.value, null, 2))
     await stream.close()
   }
 }
@@ -1391,13 +1391,13 @@ window.addEventListener("keydown", function (event) {
       event.code === "ArrowUp"
     ) {
       event.preventDefault()
-      incrementLevel()
+      app.incrementLevel()
     } else if (
       isOnlyCtrlOrCmdModifierKeyPressed(event) &&
       event.code === "ArrowDown"
     ) {
       event.preventDefault()
-      decrementLevel()
+      app.decrementLevel()
     } else if (isNoModifierKeyPressed(event) && event.key === "f") {
       event.preventDefault()
       activateFillTool()
@@ -1475,53 +1475,43 @@ function isNoModifierKeyPressed(event) {
   return !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey
 }
 
-function incrementLevel() {
-  setLevel(level + 1)
-}
-
-function decrementLevel() {
-  if (level > 0) {
-    setLevel(level - 1)
-  }
-}
-
-function setLevel(value) {
-  level = value
-  $level.value = String(level)
-  renderTileMap()
-}
-
 function undo() {
   const lastBackup = backups.pop()
   if (lastBackup) {
-    const oldTileMap = tileMap
-    tileMap = lastBackup
-    if (tileMap.size.width !== oldTileMap.size.width) {
-      $canvas.width = tileMap.size.width
+    const oldTileMap = app.tileMap.value
+    app.tileMap.next(lastBackup)
+    if (app.tileMap.value.size.width !== oldTileMap.size.width) {
+      $canvas.width = app.tileMap.value.size.width
     }
-    if (tileMap.size.height !== oldTileMap.size.height) {
-      $canvas.height = tileMap.size.height
+    if (app.tileMap.value.size.height !== oldTileMap.size.height) {
+      $canvas.height = app.tileMap.value.size.height
     }
     renderTileMap()
     saveTileMap()
   }
 }
 
-let copiedTiles: Tile[] | Array<Tile[]> | null = null
+let copiedTiles: TileLayer | TileLayer[] | null = null
 let copiedArea: FromToArea | null = null
 let hasBeenCopiedForOneLevel: boolean | null = null
 let isInPasteMode: boolean = false
 
 function copy() {
-  if (app.activeTool === "selection") {
+  if (app.activeTool.value === "selection") {
     copiedArea = determineCutArea()
-    copiedTiles = new Array(tileMap.tiles.length)
+    copiedTiles = new Array(app.tileMap.value.tiles.length)
     if (renderOnlyCurrentLevel) {
-      copiedTiles = copyArea(tileMap.tiles[level], copiedArea)
+      copiedTiles = copyArea(
+        app.tileMap.value.tiles[app.level.value],
+        copiedArea,
+      )
       hasBeenCopiedForOneLevel = true
     } else {
-      for (let level = 0; level < tileMap.tiles.length; level++) {
-        copiedTiles[level] = copyArea(tileMap.tiles[level], copiedArea)
+      for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
+        copiedTiles[level] = copyArea(
+          app.tileMap.value.tiles[level],
+          copiedArea,
+        )
       }
       hasBeenCopiedForOneLevel = false
     }
@@ -1529,64 +1519,64 @@ function copy() {
 }
 
 function cut() {
-  if (app.activeTool === "selection") {
+  if (app.activeTool.value === "selection") {
     backUpMap()
     copiedArea = determineCutArea()
-    copiedTiles = new Array(tileMap.tiles.length)
     if (renderOnlyCurrentLevel) {
-      copiedTiles = copyArea(tileMap.tiles[level], copiedArea)
+      copiedTiles = copyArea(app.currentLevelTileLayer, copiedArea)
       hasBeenCopiedForOneLevel = true
-      removeTiles(tileMap.tiles[level], copiedArea)
+      removeTiles(app.tileMap.value.tiles[app.level.value], copiedArea)
     } else {
-      for (let level = 0; level < tileMap.tiles.length; level++) {
-        copiedTiles[level] = copyArea(tileMap.tiles[level], copiedArea)
+      copiedTiles = new Array(app.tileMap.value.tiles.length)
+      for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
+        copiedTiles[level] = copyArea(
+          app.tileMap.value.tiles[level],
+          copiedArea,
+        )
       }
       hasBeenCopiedForOneLevel = false
-      removeTilesOnAllLevels(tileMap.tiles, copiedArea)
+      removeTilesOnAllLevels(app.tileMap.value.tiles, copiedArea)
     }
     renderTileMap()
     saveTileMap()
   }
 }
 
-function determineCutArea() {
+function determineCutArea(): CellArea {
   return {
     from: {
-      row: Math.ceil(selectedTilesInTileMap.y / tileMap.tileSize.height),
-      column: Math.ceil(selectedTilesInTileMap.x / tileMap.tileSize.width),
+      row: Math.floor(
+        selectedTilesInTileMap.y / app.tileMap.value.tileSize.height,
+      ),
+      column: Math.floor(
+        selectedTilesInTileMap.x / app.tileMap.value.tileSize.width,
+      ),
     },
     to: {
-      row: Math.ceil(
-        (selectedTilesInTileMap.y + selectedTilesInTileMap.height) /
-          tileMap.tileSize.height,
-      ),
-      column: Math.ceil(
-        (selectedTilesInTileMap.x + selectedTilesInTileMap.width) /
-          tileMap.tileSize.width,
-      ),
+      row:
+        Math.floor(
+          (selectedTilesInTileMap.y + selectedTilesInTileMap.height) /
+            app.tileMap.value.tileSize.height,
+        ) - 1,
+      column:
+        Math.floor(
+          (selectedTilesInTileMap.x + selectedTilesInTileMap.width) /
+            app.tileMap.value.tileSize.width,
+        ) - 1,
     },
   }
 }
 
-function removeTilesOnAllLevels(tileLayers, area) {
-  for (let level = 0; level < tileMap.tiles.length; level++) {
-    removeTiles(tileMap.tiles[level], area)
+function removeTilesOnAllLevels(tileLayers: TileLayer[], area: CellArea): void {
+  for (let level = 0; level < tileLayers.length; level++) {
+    removeTiles(tileLayers[level], area)
   }
 }
 
-function removeTiles(tiles, area) {
-  const numberOfRows = area.to.row - area.from.row
-  const numberOfColumns = area.to.column - area.from.column
-  const numberOfColumnsInTileMap = Math.ceil(
-    tileMap.size.width / tileMap.tileSize.width,
-  )
-  for (let rowOffset = 0; rowOffset < numberOfRows; rowOffset++) {
-    for (let columnOffset = 0; columnOffset < numberOfColumns; columnOffset++) {
-      const index =
-        (area.from.row + rowOffset) * numberOfColumnsInTileMap +
-        area.from.column +
-        columnOffset
-      tiles[index] = null
+function removeTiles(tileLayer: TileLayer, area: CellArea): void {
+  for (let row = area.from.row; row <= area.to.row; row++) {
+    for (let column = area.from.column; column <= area.to.column; column++) {
+      tileLayer.removeTile({ row, column })
     }
   }
 }
@@ -1605,10 +1595,10 @@ function paste(event) {
   doSomethingWithCopiedTiles(function ({ row, column }, copiedTile) {
     if (hasBeenCopiedForOneLevel) {
       if (copiedTile) {
-        setTile({ row, column }, copiedTile, level)
+        setTile({ row, column }, copiedTile, app.level.value)
       }
     } else {
-      setMultiLayerTile({ row, column }, copiedTile)
+      app.tileMap.value.setMultiLayerTile({ row, column }, copiedTile)
     }
   })
 
@@ -1622,11 +1612,11 @@ function previewPaste() {
     { row, column }: CellPosition,
     cutTile: MultiLayerTile | Tile,
   ) {
-    const x = column * tileMap.tileSize.width
-    const y = row * tileMap.tileSize.height
+    const x = column * app.tileMap.value.tileSize.width
+    const y = row * app.tileMap.value.tileSize.height
     if (hasBeenCopiedForOneLevel) {
       const replacements: MultiLayerTile = []
-      replacements[level] = cutTile as Tile
+      replacements[app.level.value] = cutTile as Tile
       renderTile({ x, y }, replacements)
     } else {
       renderTile({ x, y }, cutTile as MultiLayerTile)
@@ -1637,8 +1627,8 @@ function previewPaste() {
 }
 
 function doSomethingWithCopiedTiles(fn) {
-  const numberOfRowsCut = copiedArea.to.row - copiedArea.from.row
-  const numberOfColumnsCut = copiedArea.to.column - copiedArea.from.column
+  const numberOfRowsCut = copiedArea.to.row - copiedArea.from.row + 1
+  const numberOfColumnsCut = copiedArea.to.column - copiedArea.from.column + 1
   const fromRow =
     determineRowFromCoordinate(lastPointerPosition.y) -
     (Math.ceil(0.5 * numberOfRowsCut) - 1)
@@ -1651,14 +1641,23 @@ function doSomethingWithCopiedTiles(fn) {
       columnOffset < numberOfColumnsCut;
       columnOffset++
     ) {
-      const index = rowOffset * numberOfColumnsCut + columnOffset
       let copiedTile
       if (hasBeenCopiedForOneLevel) {
-        copiedTile = copiedTiles[index]
+        copiedTile = (copiedTiles as TileLayer).retrieveTile({
+          row: rowOffset,
+          column: columnOffset,
+        })
       } else {
-        copiedTile = new Array(copiedTiles.length)
-        for (let level = 0; level < copiedTiles.length; level++) {
-          copiedTile[level] = copiedTiles[level][index]
+        copiedTile = new Array((copiedTiles as TileLayer[]).length)
+        for (
+          let level = 0;
+          level < (copiedTiles as TileLayer[]).length;
+          level++
+        ) {
+          copiedTile[level] = (copiedTiles as TileLayer[])[level].retrieveTile({
+            row: rowOffset,
+            column: columnOffset,
+          })
         }
       }
 
@@ -1671,30 +1670,37 @@ function doSomethingWithCopiedTiles(fn) {
 }
 
 function determineRowFromCoordinate(y) {
-  return adjustToStep(y, tileMap.tileSize.height) / tileMap.tileSize.height
+  return (
+    adjustToStep(y, app.tileMap.value.tileSize.height) /
+    app.tileMap.value.tileSize.height
+  )
 }
 
 function determineColumnFromCoordinate(x) {
-  return adjustToStep(x, tileMap.tileSize.width) / tileMap.tileSize.width
+  return (
+    adjustToStep(x, app.tileMap.value.tileSize.width) /
+    app.tileMap.value.tileSize.width
+  )
 }
 
-function copyArea(tilesLayer, area) {
-  const numberOfRows = area.to.row - area.from.row
-  const numberOfColumns = area.to.column - area.from.column
-  const tiles = new Array(numberOfRows * numberOfColumns)
-  for (let row = 0; row < numberOfRows; row++) {
-    const startIndex = row * numberOfColumns
-    for (let column = 0; column < numberOfColumns; column++) {
-      tiles[startIndex + column] =
-        tilesLayer[
-          (area.from.row + row) *
-            Math.ceil(tileMap.size.width / tileMap.tileSize.width) +
-            area.from.column +
-            column
-        ]
+function copyArea(tileLayer: TileLayer, area: CellArea): TileLayer {
+  const size = {
+    width: area.to.column - area.from.column + 1,
+    height: area.to.row - area.from.row + 1,
+  }
+  const areaTileLayer = new TileLayer(size)
+  for (let row = 0; row < size.height; row++) {
+    for (let column = 0; column < size.width; column++) {
+      areaTileLayer.setTile(
+        { row, column },
+        tileLayer.retrieveTile({
+          row: area.from.row + row,
+          column: area.from.column + column,
+        }),
+      )
     }
   }
-  return tiles
+  return areaTileLayer
 }
 
 ;(
@@ -1786,8 +1792,9 @@ async function showAddTileSetDialog() {
 }
 
 function addTileSet(tileSet) {
-  const id = determineNextID(tileMap.tileSets)
-  tileMap.tileSets[id] = tileSet
+  const id = determineNextID(app.tileMap.value.tileSets)
+  // TODO: Make tileSets reactive
+  app.tileMap.value.tileSets[id] = tileSet
   addOptionToTileSetSelect(id, tileSet)
   return id
 }
@@ -1798,7 +1805,7 @@ function determineNextID(tileSets) {
 
 function selectTileSet(id) {
   $tileSetSelect.value = id
-  const tileSet = tileMap.tileSets[id]
+  const tileSet = app.tileMap.value.tileSets[id]
   $tileSet.src = tileSet.content
   localStorage.setItem("selectedTileSet", id)
 }
@@ -1821,7 +1828,7 @@ $tileSetSelect.addEventListener("change", function () {
 }
 
 function removeTileSet(id) {
-  delete tileMap.tileSets[id]
+  delete app.tileMap.value.tileSets[id]
   ;(
     $tileSetSelect.querySelector(`option[value="${id}"]`) as HTMLOptionElement
   ).remove()
@@ -1840,7 +1847,7 @@ function removeTileSet(id) {
   })
   $editTileSetModal.addEventListener("show.bs.modal", function () {
     const id = $tileSetSelect.value
-    const tileSet = tileMap.tileSets[id]
+    const tileSet = app.tileMap.value.tileSets[id]
     $editTileSetModal.querySelector("#editTileSetName").value = tileSet.name
   })
 
@@ -1848,7 +1855,7 @@ function removeTileSet(id) {
   $editTileSetForm.addEventListener("submit", function (event) {
     event.preventDefault()
     const id = $tileSetSelect.value
-    const tileSet = tileMap.tileSets[id]
+    const tileSet = app.tileMap.value.tileSets[id]
     const name = $editTileSetModal.querySelector("#editTileSetName").value
     tileSet.name = name
     $tileSetSelect.querySelector(`option[value="${id}"]`).textContent = name
