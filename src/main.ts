@@ -14,7 +14,7 @@ import type { PositionBigInt } from "./PositionBigInt.js"
 import type { Tile } from "./Tile.js"
 import { TileLayer } from "./TileLayer.js"
 import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
-import { abs,halfOfCeiled,min } from "./bigint.js"
+import { abs, halfOfCeiled, min } from "./bigint.js"
 
 import { TileMap } from "./TileMap.js"
 
@@ -155,7 +155,7 @@ $tileSet.addEventListener("pointerdown", function (event) {
 
 $tileSet.addEventListener("pointermove", function (event) {
   if (isPointerDownInTileSet) {
-    expandSelectTiles(event)
+    expandSelectTilesInTileSet(event)
   }
 })
 
@@ -187,7 +187,7 @@ export function selectTileSetTile(position: Position): void {
   $tileSelected.style.height = selectedTileSetTiles.height + "px"
 }
 
-function expandSelectTiles(event: PointerEvent): void {
+function expandSelectTilesInTileSet(event: PointerEvent): void {
   if (firstPoint) {
     const x = adjustToStep(event.offsetX, app.tileMap.value.tileSize.width)
     const y = adjustToStep(event.offsetY, app.tileMap.value.tileSize.height)
@@ -1635,11 +1635,7 @@ function paste(): void {
   doSomethingWithCopiedTiles(function ({ row, column }, copiedTile) {
     if (hasBeenCopiedForOneLevel) {
       if (copiedTile) {
-        setTile(
-          { row, column },
-          copiedTile as Tile,
-          app.level.value,
-        )
+        setTile({ row, column }, copiedTile as Tile, app.level.value)
       }
     } else {
       app.tileMap.value.setMultiLayerTile(

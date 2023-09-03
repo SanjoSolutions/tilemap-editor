@@ -1,7 +1,6 @@
 import { BehaviorSubject } from "rxjs"
 import type { Area } from "./Area.js"
 import type { Level } from "./Level.js"
-import type { Size } from "./Size.js"
 import type { TileMap } from "./TileMap.js"
 import { createTileMapNullObject } from "./TileMap.js"
 import type { Tool } from "./Tool.js"
@@ -42,9 +41,4 @@ export class App {
   selectPenTool() {}
   selectTileSetTile() {}
   useToolAt() {}
-
-  resizeTileMap(size: Size): void {
-    this.tileMap.value.resize(size)
-    this.tileMap.next(this.tileMap.value)
-  }
 }
