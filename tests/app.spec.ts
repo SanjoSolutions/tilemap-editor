@@ -20,12 +20,12 @@ test.describe("area tool", () => {
     drawArea(
       page,
       {
-        row: 0,
-        column: 0,
+        row: 0n,
+        column: 0n,
       },
       {
-        row: 1,
-        column: 1,
+        row: 1n,
+        column: 1n,
       },
     )
     const tileMap = retrieveTileMap(page)
@@ -40,7 +40,7 @@ test.describe("fill tool", () => {
     await selectFirstTile(page)
     const tileMap = retrieveTileMap(page)
     await tileMap.click({
-      position: convertCellPositionToAbsolutePosition({ row: 0, column: 0 }),
+      position: convertCellPositionToAbsolutePosition({ row: 0n, column: 0n }),
     })
     await expect(tileMap).toHaveScreenshot()
   })
@@ -53,28 +53,28 @@ test.describe("cut and paste", () => {
     await drawArea(
       page,
       {
-        row: 0,
-        column: 0,
+        row: 0n,
+        column: 0n,
       },
       {
-        row: 1,
-        column: 1,
+        row: 1n,
+        column: 1n,
       },
     )
     await selectArea(
       page,
       {
-        row: 0,
-        column: 0,
+        row: 0n,
+        column: 0n,
       },
       {
-        row: 1,
-        column: 1,
+        row: 1n,
+        column: 1n,
       },
     )
     await page.locator("body").press("Control+x")
     await page.locator("body").press("Control+v")
-    await clickOnTile(page, { row: 0, column: 2 })
+    await clickOnTile(page, { row: 0n, column: 2n })
     const tileMap = retrieveTileMap(page)
     await expect(tileMap).toHaveScreenshot()
   })
@@ -86,7 +86,7 @@ async function goToApp(page: Page): Promise<void> {
 
 async function selectFirstTile(page: Page): Promise<void> {
   await page.locator(".tile-set").click({
-    position: convertCellPositionToAbsolutePosition({ row: 0, column: 0 }),
+    position: convertCellPositionToAbsolutePosition({ row: 0n, column: 0n }),
   })
 }
 
@@ -139,7 +139,7 @@ function convertCellPositionToAbsolutePosition(
   position: CellPosition,
 ): Position {
   return {
-    x: (position.column + 0.5) * 32,
-    y: (position.row + 0.5) * 32,
+    x: Number(position.column * 32n + BigInt(0.5 * 32)),
+    y: Number(position.row * 32n + BigInt(0.5 * 32)),
   }
 }
