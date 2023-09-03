@@ -1,22 +1,23 @@
 import { areDifferent } from "./areDifferent.js"
+import type { CellArea } from "./CellArea.js"
 import type { CellPosition } from "./CellPosition.js"
-import type { Size } from "./Size.js"
-import { Tile } from "./Tile.js"
+import type { Tile } from "./Tile.js"
 
 export class TileLayer {
-  size: Size
-  tiles: (Tile | null)[]
-
-  constructor(size: Size) {
-    this.size = size
-    this.tiles = new Array(size.width * size.height)
-  }
+  tiles: Record<string, Record<string, Tile>> = {}
 
   setTile({ row, column }: CellPosition, tile: Tile): boolean {
-    const index = this.calculateIndex({ row, column })
-    const previousTile = this.tiles[index]
+    const previousTile = this.retrieveTile({ row, column })
     if (!previousTile || areDifferent(previousTile, tile)) {
-      this.tiles[index] = tile
+      const rowString = String(row)
+      let tileLayerRow: Record<string, Tile>
+      if (this.tiles[rowString]) {
+        tileLayerRow = this.tiles[rowString]
+      } else {
+        tileLayerRow = {}
+        this.tiles[rowString] = tileLayerRow
+      }
+      tileLayerRow[String(column)] = tile
       return true
     } else {
       return false
@@ -24,22 +25,50 @@ export class TileLayer {
   }
 
   removeTile({ row, column }: CellPosition): void {
-    const index = this.calculateIndex({ row, column })
-    this.tiles[index] = null
+    const rowString = String(row)
+    if (this.tiles[rowString]) {
+      const tileLayerRow = this.tiles[rowString]
+      delete tileLayerRow[String(column)]
+    }
   }
 
   retrieveTile({ row, column }: CellPosition): Tile | null {
-    const index = this.calculateIndex({ row, column })
-    return this.tiles[index]
+    const rowString = String(row)
+    if (this.tiles[rowString]) {
+      const tileLayerRow = this.tiles[rowString]
+      return tileLayerRow[String(column)] ?? null
+    } else {
+      return null
+    }
   }
 
-  private calculateIndex({ row, column }: CellPosition): number {
-    return row * this.size.width + column
+  retrieveArea(area: CellArea): TileLayer {
+    const size = {
+      width: area.to.column - area.from.column + 1n,
+      height: area.to.row - area.from.row + 1n,
+    }
+    const areaTileLayer = new TileLayer()
+    for (let row = 0n; row < size.height; row++) {
+      for (let column = 0n; column < size.width; column++) {
+        const tile = this.retrieveTile({
+          row: area.from.row + row,
+          column: area.from.column + column,
+        })
+        if (tile) {
+          areaTileLayer.setTile({ row, column }, tile)
+        }
+      }
+    }
+    return areaTileLayer
   }
 
   copy(): TileLayer {
-    const copy = new TileLayer({ ...this.size })
-    copy.tiles = [...this.tiles]
+    const copy = new TileLayer()
+    copy.tiles = {}
+    for (const row of Object.keys(this.tiles)) {
+      let tileLayerRow = this.tiles[row]
+      copy.tiles[row] = { ...tileLayerRow }
+    }
     return copy
   }
 }

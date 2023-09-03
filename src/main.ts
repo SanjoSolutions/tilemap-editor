@@ -1,15 +1,7 @@
-import * as bootstrap from "bootstrap"
-import { App } from "./App.js"
-import type { Area } from "./Area.js"
-import type { CellArea } from "./CellArea.js"
 import type { CellPosition } from "./CellPosition.js"
 import type { MultiLayerTile } from "./MultiLayerTile.js"
-import type { Position } from "./Position.js"
 import type { Tile } from "./Tile.js"
-import { TileLayer } from "./TileLayer.js"
-import { TileMap } from "./TileMap.js"
-import { areDifferent } from "./areDifferent.js"
-
+import type { TileLayer } from "./TileLayer.js"
 if (window.IS_DEVELOPMENT) {
   new EventSource("/esbuild").addEventListener("change", () =>
     location.reload(),
@@ -240,9 +232,13 @@ function migrateTileMap(tileMap: TileMap): TileMap {
     }
   }
 
-  if (!tileMap.tiles[0].tiles[0]?.hasOwnProperty("tileSet")) {
-    for (const levelTileMap of tileMap.tiles) {
-      for (const tile of levelTileMap.tiles) {
+  if (
+    !tileMap.tiles[0]
+      .retrieveTile({ row: 0, column: 0 })
+      ?.hasOwnProperty("tileSet")
+  ) {
+    for (const tileLayer of tileMap.tiles) {
+      for (const [_, tile] of tileLayer.entries()) {
         if (tile) {
           tile.tileSet = 0
         }
@@ -1008,7 +1004,7 @@ async function createTileMap({ width, height }) {
     name: "tileset.png",
     content: await loadFileAsDataUrl("tileset.png"),
   }
-  tileMap.tiles[0] = new TileLayer({ width, height })
+  tileMap.tiles[0] = new TileLayer()
   return tileMap
 }
 
@@ -1328,7 +1324,7 @@ function parseJSONTileMap(content) {
   const tileMap = new TileMap()
   Object.assign(tileMap, JSON.parse(content))
   tileMap.tiles = tileMap.tiles.map((rawTileLayer) => {
-    const tileLayer = new TileLayer(rawTileLayer.size)
+    const tileLayer = new TileLayer()
     tileLayer.tiles = rawTileLayer.tiles
     return tileLayer
   })
@@ -1499,19 +1495,15 @@ let isInPasteMode: boolean = false
 function copy() {
   if (app.activeTool.value === "selection") {
     copiedArea = determineCutArea()
-    copiedTiles = new Array(app.tileMap.value.tiles.length)
     if (renderOnlyCurrentLevel) {
-      copiedTiles = copyArea(
-        app.tileMap.value.tiles[app.level.value],
-        copiedArea,
-      )
+      copiedTiles =
+        app.tileMap.value.tiles[app.level.value].retrieveArea(copiedArea)
       hasBeenCopiedForOneLevel = true
     } else {
+      copiedTiles = new Array(app.tileMap.value.tiles.length)
       for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
-        copiedTiles[level] = copyArea(
-          app.tileMap.value.tiles[level],
-          copiedArea,
-        )
+        copiedTiles[level] =
+          app.tileMap.value.tiles[level].retrieveArea(copiedArea)
       }
       hasBeenCopiedForOneLevel = false
     }
@@ -1520,21 +1512,11 @@ function copy() {
 
 function cut() {
   if (app.activeTool.value === "selection") {
+    copy()
     backUpMap()
-    copiedArea = determineCutArea()
     if (renderOnlyCurrentLevel) {
-      copiedTiles = copyArea(app.currentLevelTileLayer, copiedArea)
-      hasBeenCopiedForOneLevel = true
       removeTiles(app.tileMap.value.tiles[app.level.value], copiedArea)
     } else {
-      copiedTiles = new Array(app.tileMap.value.tiles.length)
-      for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
-        copiedTiles[level] = copyArea(
-          app.tileMap.value.tiles[level],
-          copiedArea,
-        )
-      }
-      hasBeenCopiedForOneLevel = false
       removeTilesOnAllLevels(app.tileMap.value.tiles, copiedArea)
     }
     renderTileMap()
@@ -1681,26 +1663,6 @@ function determineColumnFromCoordinate(x) {
     adjustToStep(x, app.tileMap.value.tileSize.width) /
     app.tileMap.value.tileSize.width
   )
-}
-
-function copyArea(tileLayer: TileLayer, area: CellArea): TileLayer {
-  const size = {
-    width: area.to.column - area.from.column + 1,
-    height: area.to.row - area.from.row + 1,
-  }
-  const areaTileLayer = new TileLayer(size)
-  for (let row = 0; row < size.height; row++) {
-    for (let column = 0; column < size.width; column++) {
-      areaTileLayer.setTile(
-        { row, column },
-        tileLayer.retrieveTile({
-          row: area.from.row + row,
-          column: area.from.column + column,
-        }),
-      )
-    }
-  }
-  return areaTileLayer
 }
 
 ;(

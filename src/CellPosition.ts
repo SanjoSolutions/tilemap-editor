@@ -1,4 +1,4 @@
 export interface CellPosition {
-  row: number
-  column: number
+  row: bigint
+  column: bigint
 }

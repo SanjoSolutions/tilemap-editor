@@ -19,9 +19,7 @@ export class TileMap {
   }
   tileSets: Record<TileSetID, TileSet> = {}
   // TODO: Make tiles reactive
-  tiles: TileLayer[] = [
-    new TileLayer({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }),
-  ]
+  tiles: TileLayer[] = [new TileLayer()]
 
   resize({ width, height }: Size) {
     const oldNumberOfRows = Math.ceil(this.size.height / this.tileSize.height)
@@ -30,20 +28,17 @@ export class TileMap {
     const numberOfColumns = Math.ceil(width / this.tileSize.width)
 
     this.tiles = this.tiles.map(function (oldTiles) {
-      const updatedTiles = new TileLayer({
-        width: numberOfColumns,
-        height: numberOfRows,
-      })
-      for (let row = 0; row < Math.min(oldNumberOfRows, numberOfRows); row++) {
+      const updatedTiles = new TileLayer()
+      for (let row = 0n; row < Math.min(oldNumberOfRows, numberOfRows); row++) {
         for (
-          let column = 0;
+          let column = 0n;
           column < Math.min(oldNumberOfColumns, numberOfColumns);
           column++
         ) {
-          updatedTiles.setTile(
-            { row, column },
-            oldTiles.retrieveTile({ row, column }),
-          )
+          const tile = oldTiles.retrieveTile({ row, column })
+          if (tile) {
+            updatedTiles.setTile({ row, column }, tile)
+          }
         }
       }
       return updatedTiles
