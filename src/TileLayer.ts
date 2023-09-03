@@ -1,5 +1,5 @@
-import { areDifferent } from "./areDifferent.js"
-import type { CellArea } from "./CellArea.js"
+import { areTilesDifferent } from "./areTilesDifferent.js"
+import type { CellAreaFromTo } from "./CellAreaFromTo.js"
 import type { CellPosition } from "./CellPosition.js"
 import type { Tile } from "./Tile.js"
 
@@ -8,7 +8,7 @@ export class TileLayer {
 
   setTile({ row, column }: CellPosition, tile: Tile): boolean {
     const previousTile = this.retrieveTile({ row, column })
-    if (!previousTile || areDifferent(previousTile, tile)) {
+    if (!previousTile || areTilesDifferent(previousTile, tile)) {
       const rowString = String(row)
       let tileLayerRow: Record<string, Tile>
       if (this.tiles[rowString]) {
@@ -42,7 +42,7 @@ export class TileLayer {
     }
   }
 
-  retrieveArea(area: CellArea): TileLayer {
+  retrieveArea(area: CellAreaFromTo): TileLayer {
     const size = {
       width: area.to.column - area.from.column + 1n,
       height: area.to.row - area.from.row + 1n,
@@ -70,5 +70,21 @@ export class TileLayer {
       copy.tiles[row] = { ...tileLayerRow }
     }
     return copy
+  }
+
+  *entries(): Generator<[CellPosition, Tile]> {
+    for (const row of Object.keys(this.tiles)) {
+      const tileLayerRow = this.tiles[row]
+      for (const column of Object.keys(tileLayerRow)) {
+        const tile = tileLayerRow[column]
+        yield [
+          {
+            row: BigInt(row),
+            column: BigInt(column),
+          },
+          tile,
+        ]
+      }
+    }
   }
 }

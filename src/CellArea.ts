@@ -1,5 +1,3 @@
 import type { CellPosition } from "./CellPosition.js"
-export interface CellArea {
-  from: CellPosition
-  to: CellPosition
-}
+import type { SizeBigInt } from "./SizeBigInt.js"
+export type CellArea = CellPosition & SizeBigInt

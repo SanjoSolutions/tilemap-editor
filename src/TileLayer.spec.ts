@@ -51,4 +51,19 @@ describe("TileLayer", () => {
       expect(copy.retrieveTile({ row: 0n, column: 0n })).toBe(tile)
     })
   })
+
+  describe("entries", () => {
+    it("is a generator function which returns entry by entry", () => {
+      const tileLayer = new TileLayer()
+      const tile1 = createTileFixture()
+      const tile2 = createTileFixture()
+      tileLayer.setTile({ row: 0n, column: 0n }, tile1)
+      tileLayer.setTile({ row: 1n, column: 1n }, tile2)
+      const entries = [...tileLayer.entries()]
+      expect(entries).toEqual([
+        [{ row: 0n, column: 0n }, tile1],
+        [{ row: 1n, column: 1n }, tile2],
+      ])
+    })
+  })
 })

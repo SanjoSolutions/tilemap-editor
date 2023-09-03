@@ -11,6 +11,7 @@ export class App {
   _level = new BehaviorSubject<Level>(0)
   selectedTileSetTiles = new BehaviorSubject<Area | null>(null)
   tileMap = new BehaviorSubject<TileMap>(createTileMapNullObject())
+  isDragModeEnabled = new BehaviorSubject<boolean>(false)
 
   set level(level: Level) {
     if (level >= 0) {

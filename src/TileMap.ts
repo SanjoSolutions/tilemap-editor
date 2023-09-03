@@ -1,18 +1,11 @@
 import type { CellPosition } from "./CellPosition.js"
 import type { MultiLayerTile } from "./MultiLayerTile.js"
-import { Size } from "./Size.js"
+import type { Size } from "./Size.js"
 import { TileLayer } from "./TileLayer.js"
-import { TileSet } from "./TileSet.js"
-import { TileSetID } from "./TileSetID.js"
-
-const DEFAULT_WIDTH = 0
-const DEFAULT_HEIGHT = 0
+import type { TileSet } from "./TileSet.js"
+import type { TileSetID } from "./TileSetID.js"
 
 export class TileMap {
-  size: Size = {
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
-  }
   tileSize: Size = {
     width: 0,
     height: 0,
@@ -20,32 +13,6 @@ export class TileMap {
   tileSets: Record<TileSetID, TileSet> = {}
   // TODO: Make tiles reactive
   tiles: TileLayer[] = [new TileLayer()]
-
-  resize({ width, height }: Size) {
-    const oldNumberOfRows = Math.ceil(this.size.height / this.tileSize.height)
-    const oldNumberOfColumns = Math.ceil(this.size.width / this.tileSize.width)
-    const numberOfRows = Math.ceil(height / this.tileSize.height)
-    const numberOfColumns = Math.ceil(width / this.tileSize.width)
-
-    this.tiles = this.tiles.map(function (oldTiles) {
-      const updatedTiles = new TileLayer()
-      for (let row = 0n; row < Math.min(oldNumberOfRows, numberOfRows); row++) {
-        for (
-          let column = 0n;
-          column < Math.min(oldNumberOfColumns, numberOfColumns);
-          column++
-        ) {
-          const tile = oldTiles.retrieveTile({ row, column })
-          if (tile) {
-            updatedTiles.setTile({ row, column }, tile)
-          }
-        }
-      }
-      return updatedTiles
-    })
-    this.size.width = width
-    this.size.height = height
-  }
 
   setMultiLayerTile(
     { row, column }: CellPosition,
@@ -63,7 +30,6 @@ export class TileMap {
 
   copy() {
     const copy = new TileMap()
-    copy.size = { ...this.size }
     copy.tileSize = { ...this.tileSize }
     copy.tileSets = { ...this.tileSets }
     copy.tiles = this.tiles.map((tileLayer) => tileLayer.copy())
