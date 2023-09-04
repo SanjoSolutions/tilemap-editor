@@ -1,5 +1,7 @@
 # Tilemap Editor
 
+![How the app looks](image.png)
+
 ## Features
 
 * Runs in the browser
