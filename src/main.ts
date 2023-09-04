@@ -695,8 +695,18 @@ $canvas.addEventListener("pointermove", function (event) {
       const previousPreviewTiles = previewTiles
       previewTiles = {
         ...convertEventToCellPosition(event),
-        width: 1n,
-        height: 1n,
+        width: BigInt(
+          Math.ceil(
+            app.selectedTileSetTiles.value.width /
+              app.tileMap.value.tileSize.width,
+          ),
+        ),
+        height: BigInt(
+          Math.ceil(
+            app.selectedTileSetTiles.value.height /
+              app.tileMap.value.tileSize.height,
+          ),
+        ),
       }
       if (
         !previousPreviewTiles ||
@@ -1099,15 +1109,11 @@ function setTile(position: CellPosition, tile: Tile, level: number) {
 }
 
 function renderTiles(area: CellArea): void {
-  for (
-    let row = area.row;
-    row < area.row + area.height;
-    row += BigInt(app.tileMap.value.tileSize.height)
-  ) {
+  for (let row = area.row; row < area.row + area.height; row += 1n) {
     for (
       let column = area.column;
       column < area.column + area.width;
-      column += BigInt(app.tileMap.value.tileSize.width)
+      column += 1n
     ) {
       renderTile({ row, column })
     }
