@@ -3,7 +3,7 @@
   "scripts": {
     "development": "node development.js",
     "build": "node build.js",
-    "test": "jest && playwright test",
+    "test": "tsc --noEmit && jest && playwright test",
     "serve": "python3 -m http.server 8000"
   },
   "dependencies": {

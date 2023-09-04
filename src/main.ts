@@ -585,28 +585,27 @@ function previewArea() {
       selectedTileSetTiles.width / app.tileMap.value.tileSize.width,
     )
     doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
-      context.drawImage(
-        $tileSet,
-        selectedTileSetTiles.x +
+      const replacements = []
+      const tile = {
+        x:
+          selectedTileSetTiles.x +
           Number(column % numberOfColumnsSelectedInTileSet) *
             app.tileMap.value.tileSize.width,
-        selectedTileSetTiles.y +
+        y:
+          selectedTileSetTiles.y +
           Number(row % numberOfRowsSelectedInTileSet) *
             app.tileMap.value.tileSize.height,
-        app.tileMap.value.tileSize.width,
-        app.tileMap.value.tileSize.height,
-        Number(
-          (currentlySelectedTilesInTileMap.column + column) *
-            BigInt(app.tileMap.value.tileSize.width) -
-            tileMapViewport.value.x,
-        ),
-        Number(
-          (currentlySelectedTilesInTileMap.row + row) *
-            BigInt(app.tileMap.value.tileSize.height) -
-            tileMapViewport.value.y,
-        ),
-        app.tileMap.value.tileSize.width,
-        app.tileMap.value.tileSize.height,
+        width: app.tileMap.value.tileSize.width,
+        height: app.tileMap.value.tileSize.height,
+      }
+      replacements[app.level.value] = tile
+
+      renderTile(
+        {
+          row: currentlySelectedTilesInTileMap.row + row,
+          column: currentlySelectedTilesInTileMap.column + column,
+        },
+        replacements,
       )
     })
   }
