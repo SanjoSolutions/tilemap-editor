@@ -1218,6 +1218,7 @@ function renderPreviewTiles() {
 }
 
 tileMapViewport.subscribe(renderTileMap)
+tileMapViewport.subscribe(updateSelectedArea)
 
 function renderTileMap() {
   const area = {
