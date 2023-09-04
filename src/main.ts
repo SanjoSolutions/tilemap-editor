@@ -1850,7 +1850,6 @@ function previewPaste() {
     width: numberOfColumnsCut,
     height: numberOfRowsCut,
   })
-  // renderGrid()
 }
 
 function doSomethingWithCopiedTiles(
