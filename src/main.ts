@@ -81,7 +81,6 @@ const $tileSelected = document.querySelector(".tile-selected") as HTMLDivElement
     "selectedTileSetTiles",
   )
   if (selectedTileSetTilesSerialized) {
-    console.log(selectedTileSetTilesSerialized)
     selectTileSetTiles(JSON.parse(selectedTileSetTilesSerialized))
   }
 }
