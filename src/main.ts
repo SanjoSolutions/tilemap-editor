@@ -1361,6 +1361,7 @@ async function saveMap() {
 }
 
 window.addEventListener("keydown", function (event) {
+  console.log(event.code)
   if (!isModalOpen) {
     if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "z") {
       event.preventDefault()
@@ -1425,6 +1426,11 @@ window.addEventListener("keydown", function (event) {
     } else if (isNoModifierKeyPressed(event) && event.code === "Space") {
       event.preventDefault()
       app.isDragModeEnabled.next(true)
+    } else if (
+      isNoModifierKeyPressed(event) &&
+      (event.code === "Backspace" || event.code === "Delete")
+    ) {
+      removeTiles()
     }
   }
 })
@@ -1494,39 +1500,49 @@ let isInPasteMode: boolean = false
 
 function copy() {
   if (app.activeTool.value === "selection") {
-    copiedArea = determineCutArea()
-    if (renderOnlyCurrentLevel) {
-      copiedTiles =
-        app.tileMap.value.tiles[app.level.value].retrieveArea(copiedArea)
-      hasBeenCopiedForOneLevel = true
-    } else {
-      copiedTiles = new Array(app.tileMap.value.tiles.length)
-      for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
-        copiedTiles[level] =
-          app.tileMap.value.tiles[level].retrieveArea(copiedArea)
+    const selectedArea = retrieveSelectedArea()
+    if (selectedArea) {
+      copiedArea = selectedArea
+      if (renderOnlyCurrentLevel) {
+        copiedTiles =
+          app.tileMap.value.tiles[app.level.value].retrieveArea(copiedArea)
+        hasBeenCopiedForOneLevel = true
+      } else {
+        copiedTiles = new Array(app.tileMap.value.tiles.length)
+        for (let level = 0; level < app.tileMap.value.tiles.length; level++) {
+          copiedTiles[level] =
+            app.tileMap.value.tiles[level].retrieveArea(copiedArea)
+        }
+        hasBeenCopiedForOneLevel = false
       }
-      hasBeenCopiedForOneLevel = false
     }
   }
+}
+
+function removeTiles(): void {
+  const selectedArea = retrieveSelectedArea()
+  if (selectedArea) {
+    if (renderOnlyCurrentLevel) {
+      removeTilesOnCurrentLevel(
+        app.tileMap.value.tiles[app.level.value],
+        convertFromToAreaToCellArea(selectedArea),
+      )
+    } else {
+      removeTilesOnAllLevels(
+        app.tileMap.value.tiles,
+        convertFromToAreaToCellArea(selectedArea),
+      )
+    }
+  }
+  renderTileMap()
+  saveTileMap()
 }
 
 function cut() {
   if (app.activeTool.value === "selection") {
     copy()
     app.backUpMap()
-    if (renderOnlyCurrentLevel) {
-      removeTiles(
-        app.tileMap.value.tiles[app.level.value],
-        convertFromToAreaToCellArea(copiedArea!),
-      )
-    } else {
-      removeTilesOnAllLevels(
-        app.tileMap.value.tiles,
-        convertFromToAreaToCellArea(copiedArea!),
-      )
-    }
-    renderTileMap()
-    saveTileMap()
+    removeTiles()
   }
 }
 
@@ -1539,7 +1555,7 @@ function convertFromToAreaToCellArea(fromToArea: FromToArea): CellArea {
   }
 }
 
-function determineCutArea(): CellAreaFromTo {
+function retrieveSelectedArea(): CellAreaFromTo | null {
   if (selectedTilesInTileMap) {
     return {
       from: {
@@ -1553,17 +1569,17 @@ function determineCutArea(): CellAreaFromTo {
       },
     }
   } else {
-    throw new Error("No selected tiles in tile map.")
+    return null
   }
 }
 
 function removeTilesOnAllLevels(tileLayers: TileLayer[], area: CellArea): void {
   for (let level = 0; level < tileLayers.length; level++) {
-    removeTiles(tileLayers[level], area)
+    removeTilesOnCurrentLevel(tileLayers[level], area)
   }
 }
 
-function removeTiles(tileLayer: TileLayer, area: CellArea): void {
+function removeTilesOnCurrentLevel(tileLayer: TileLayer, area: CellArea): void {
   for (let row = area.row; row < area.row + area.height; row++) {
     for (
       let column = area.column;
