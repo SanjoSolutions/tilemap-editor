@@ -360,13 +360,13 @@ function convertCanvasPositionToCellPosition(position: Position): CellPosition {
   return {
     row: BigInt(
       adjustToStepBigInt(
-        tileMapViewport.value.y + BigInt(position.y),
+        tileMapViewport.value.y + BigInt(Math.round(position.y)),
         BigInt(app.tileMap.value.tileSize.height),
       ) / BigInt(app.tileMap.value.tileSize.height),
     ),
     column: BigInt(
       adjustToStepBigInt(
-        tileMapViewport.value.x + BigInt(position.x),
+        tileMapViewport.value.x + BigInt(Math.round(position.x)),
         BigInt(app.tileMap.value.tileSize.width),
       ) / BigInt(app.tileMap.value.tileSize.width),
     ),
