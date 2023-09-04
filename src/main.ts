@@ -75,6 +75,18 @@ const $level = document.querySelector(".level") as HTMLInputElement
   }
 }
 
+const $tileSelected = document.querySelector(".tile-selected") as HTMLDivElement
+
+{
+  const selectedTileSetTilesSerialized = localStorage.getItem(
+    "selectedTileSetTiles",
+  )
+  if (selectedTileSetTilesSerialized) {
+    console.log(selectedTileSetTilesSerialized)
+    selectTileSetTiles(JSON.parse(selectedTileSetTilesSerialized))
+  }
+}
+
 const isGridShownSerialized = localStorage.getItem("isGridShown")
 let isModalOpen: boolean = false
 const menuIconBar = document.querySelector(
@@ -147,8 +159,6 @@ $tileSet.addEventListener("pointermove", function (event) {
     adjustToStep(event.offsetY, app.tileMap.value.tileSize.height) + "px"
 })
 
-const $tileSelected = document.querySelector(".tile-selected") as HTMLDivElement
-
 let isPointerDownInTileSet = false
 
 $tileSet.addEventListener("pointerdown", function (event) {
@@ -170,25 +180,12 @@ $tileSet.addEventListener("mouseleave", function () {
 let firstPoint: Point | null = null
 
 export function selectTileSetTile(position: Position): void {
-  let { x, y } = position
-  x = adjustToStep(x, app.tileMap.value.tileSize.width)
-  y = adjustToStep(y, app.tileMap.value.tileSize.height)
-  firstPoint = {
-    x,
-    y,
-  }
-  const selectedTileSetTiles = {
-    x,
-    y,
+  selectTileSetTiles({
+    x: position.x,
+    y: position.y,
     width: app.tileMap.value.tileSize.width,
     height: app.tileMap.value.tileSize.height,
-  }
-  app.selectedTileSetTiles.next(selectedTileSetTiles)
-  $tileSelected.style.display = "block"
-  $tileSelected.style.left = selectedTileSetTiles.x + "px"
-  $tileSelected.style.top = selectedTileSetTiles.y + "px"
-  $tileSelected.style.width = selectedTileSetTiles.width + "px"
-  $tileSelected.style.height = selectedTileSetTiles.height + "px"
+  })
 }
 
 function expandSelectTilesInTileSet(event: PointerEvent): void {
@@ -201,13 +198,40 @@ function expandSelectTilesInTileSet(event: PointerEvent): void {
       width: Math.abs(x - firstPoint.x) + app.tileMap.value.tileSize.width,
       height: Math.abs(y - firstPoint.y) + app.tileMap.value.tileSize.height,
     }
+    selectTileSetTiles(selectedTileSetTiles)
+  } else {
+    throw new Error("firstPoint is null.")
+  }
+}
+
+export function selectTileSetTiles(area: Area | null): void {
+  if (area) {
+    let { x, y, width, height } = area
+    x = adjustToStep(x, app.tileMap.value.tileSize.width)
+    y = adjustToStep(y, app.tileMap.value.tileSize.height)
+    width = adjustToStep(width, app.tileMap.value.tileSize.width)
+    height = adjustToStep(height, app.tileMap.value.tileSize.height)
+    firstPoint = {
+      x,
+      y,
+    }
+    const selectedTileSetTiles = {
+      x,
+      y,
+      width,
+      height,
+    }
     app.selectedTileSetTiles.next(selectedTileSetTiles)
+    $tileSelected.style.display = "block"
     $tileSelected.style.left = selectedTileSetTiles.x + "px"
     $tileSelected.style.top = selectedTileSetTiles.y + "px"
+    console.log(selectedTileSetTiles)
     $tileSelected.style.width = selectedTileSetTiles.width + "px"
     $tileSelected.style.height = selectedTileSetTiles.height + "px"
   } else {
-    throw new Error("firstPoint is null.")
+    firstPoint = null
+    app.selectedTileSetTiles.next(null)
+    $tileSelected.style.display = "none"
   }
 }
 
@@ -319,9 +343,6 @@ function migrateTileMap(tileMap: TileMap): TileMap {
 
 $tileHover.style.width = app.tileMap.value.tileSize.width + "px"
 $tileHover.style.height = app.tileMap.value.tileSize.height + "px"
-
-$tileSelected.style.width = app.tileMap.value.tileSize.width + "px"
-$tileSelected.style.height = app.tileMap.value.tileSize.height + "px"
 
 renderGrid()
 
@@ -1219,6 +1240,15 @@ function renderPreviewTiles() {
 
 tileMapViewport.subscribe(renderTileMap)
 tileMapViewport.subscribe(updateSelectedArea)
+
+function saveSelectedTileSetTiles(selectedTileSetTiles: Area | null): void {
+  localStorage.setItem(
+    "selectedTileSetTiles",
+    JSON.stringify(selectedTileSetTiles),
+  )
+}
+
+app.selectedTileSetTiles.subscribe(saveSelectedTileSetTiles)
 
 function renderTileMap() {
   const area = {
