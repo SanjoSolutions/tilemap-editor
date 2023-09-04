@@ -395,11 +395,15 @@ function doPointerDownOnTileMap(cellPosition: CellPosition): void {
 }
 
 function previewFill(position: CellPosition): void {
-  doAFillMethod(position, function (cellPosition, selectedTile) {
-    const replacements: MultiLayerTile = []
-    replacements[app.level.value] = selectedTile
-    renderTile(cellPosition, replacements)
-  })
+  doAFillMethod(
+    position,
+    function (cellPosition, selectedTile) {
+      const replacements: MultiLayerTile = []
+      replacements[app.level.value] = selectedTile
+      renderTile(cellPosition, replacements)
+    },
+    { onlyVisibleTiles: true },
+  )
 }
 
 function fill(cellPosition: CellPosition): void {
@@ -414,6 +418,7 @@ function fill(cellPosition: CellPosition): void {
 function doAFillMethod(
   position: CellPosition,
   fn: (cellPosition: CellPosition, tile: Tile) => void,
+  options: { onlyVisibleTiles: boolean } = { onlyVisibleTiles: false },
 ): void {
   if (app.selectedTileSetTiles.value) {
     const MAX_DISTANCE_FROM_ORIGIN = 250
@@ -457,17 +462,30 @@ function doAFillMethod(
         if (hasNotBeenVisited(cellPosition)) {
           fn(cellPosition, selectedTile)
           setAsVisited(cellPosition)
-          const neighbors = retrieveNeighborsWithSetTile(
+          let neighbors = retrieveNeighborsWithSetTile(
             cellPosition,
             originTileBeforeFill,
           )
             .filter(hasNotBeenVisited)
             .filter(isInRange)
+          if (options.onlyVisibleTiles) {
+            neighbors = neighbors.filter(isCellPositionVisibleOnCanvas)
+          }
           nextCellPositions.push(...neighbors)
         }
       }
     } while (nextCellPositions.length >= 1)
   }
+}
+
+function isCellPositionVisibleOnCanvas(cellPosition: CellPosition): boolean {
+  const canvasPosition = convertCellPositionToCanvasPosition(cellPosition)
+  return (
+    canvasPosition.x >= 0 &&
+    canvasPosition.x < $canvas.width &&
+    canvasPosition.y >= 0 &&
+    canvasPosition.y < $canvas.height
+  )
 }
 
 function retrieveNeighborsWithSetTile(
