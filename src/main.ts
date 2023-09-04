@@ -662,7 +662,13 @@ let lastPointerPosition: Point | null = null
 $tileMap.addEventListener("pointermove", function (event) {
   lastPointerPosition = convertEventToPosition(event)
 
-  if (isPointerDownInTileMap) {
+  if (app.isDragModeEnabled.value) {
+    const newTileMapViewport = {
+      x: tileMapViewport.value.x - BigInt(event.movementX),
+      y: tileMapViewport.value.y - BigInt(event.movementY),
+    }
+    tileMapViewport.next(newTileMapViewport)
+  } else if (isPointerDownInTileMap) {
     if (app.activeTool.value === "area") {
       if (app.selectedTileSetTiles.value) {
         expandSelectTilesInTileMap(event)
@@ -683,12 +689,6 @@ $tileMap.addEventListener("pointermove", function (event) {
       expandSelectTilesInTileMap(event)
       updateSelectedArea()
     }
-  } else if (app.isDragModeEnabled.value) {
-    const newTileMapViewport = {
-      x: tileMapViewport.value.x - BigInt(event.movementX),
-      y: tileMapViewport.value.y - BigInt(event.movementY),
-    }
-    tileMapViewport.next(newTileMapViewport)
   } else if (isInPasteMode) {
     renderTileMap()
     previewPaste()
@@ -1552,6 +1552,7 @@ window.addEventListener("keydown", function (event) {
     } else if (isNoModifierKeyPressed(event) && event.code === "Space") {
       event.preventDefault()
       app.isDragModeEnabled.next(true)
+      renderTileMap()
     } else if (
       isNoModifierKeyPressed(event) &&
       (event.code === "Backspace" || event.code === "Delete")
