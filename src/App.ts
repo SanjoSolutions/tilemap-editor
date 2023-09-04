@@ -1,13 +1,13 @@
 import { BehaviorSubject } from "rxjs"
 import type { Area } from "./Area.js"
+import { calculateNumberOfColumns } from "./calculateNumberOfColumns.js"
+import { calculateNumberOfRows } from "./calculateNumberOfRows.js"
 import type { CellPosition } from "./CellPosition.js"
 import type { Level } from "./Level.js"
 import { TileLayer } from "./TileLayer.js"
 import type { TileMap } from "./TileMap.js"
 import { createTileMapNullObject } from "./TileMap.js"
 import { Tool } from "./Tool.js"
-import { calculateNumberOfColumns } from "./calculateNumberOfColumns.js"
-import { calculateNumberOfRows } from "./calculateNumberOfRows.js"
 
 export class App {
   activeTool = new BehaviorSubject<Tool | null>(null)
@@ -106,7 +106,7 @@ export class App {
           columnOffset < numberOfSelectedColumnsInTileSet;
           columnOffset++
         ) {
-          const row = baseRow + BigInt(columnOffset)
+          const row = baseRow + BigInt(rowOffset)
           const column = baseColumn + BigInt(columnOffset)
 
           const tile = {
