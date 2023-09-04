@@ -52,8 +52,8 @@ if (window.IS_DEVELOPMENT) {
   )
 }
 
-const $canvas = document.querySelector(".tile-map") as HTMLCanvasElement
-const context = $canvas.getContext("2d")!
+const $tileMap = document.querySelector(".tile-map") as HTMLCanvasElement
+const context = $tileMap.getContext("2d")!
 
 const database = new Database()
 const app = new App()
@@ -331,14 +331,14 @@ function migrateTileMap(tileMap: TileMap): TileMap {
 
 {
   const $tileMapContainer = document.querySelector(".tile-map-container")!
-  $canvas.width = $tileMapContainer.clientWidth
-  $canvas.height = $tileMapContainer.clientHeight
+  $tileMap.width = $tileMapContainer.clientWidth
+  $tileMap.height = $tileMapContainer.clientHeight
 
   window.addEventListener(
     "resize",
     debounce(function () {
-      $canvas.width = $tileMapContainer.clientWidth
-      $canvas.height = $tileMapContainer.clientHeight
+      $tileMap.width = $tileMapContainer.clientWidth
+      $tileMap.height = $tileMapContainer.clientHeight
       renderTileMap()
     }, 300),
   )
@@ -371,7 +371,7 @@ let firstPositionTileMap: CellPosition | null = null
 let selectedTilesInTileMap: CellArea | null = null
 let isPointerDownInTileMap: boolean = false
 
-$canvas.addEventListener("pointerdown", function (event) {
+$tileMap.addEventListener("pointerdown", function (event) {
   event.preventDefault()
   doPointerDownOnTileMap(convertEventToCellPosition(event))
 })
@@ -510,9 +510,9 @@ function isCellPositionVisibleOnCanvas(cellPosition: CellPosition): boolean {
   const canvasPosition = convertCellPositionToCanvasPosition(cellPosition)
   return (
     canvasPosition.x >= 0 &&
-    canvasPosition.x < $canvas.width &&
+    canvasPosition.x < $tileMap.width &&
     canvasPosition.y >= 0 &&
-    canvasPosition.y < $canvas.height
+    canvasPosition.y < $tileMap.height
   )
 }
 
@@ -660,7 +660,7 @@ function previewArea() {
 
 let lastPointerPosition: Point | null = null
 
-$canvas.addEventListener("pointermove", function (event) {
+$tileMap.addEventListener("pointermove", function (event) {
   lastPointerPosition = convertEventToPosition(event)
 
   if (isPointerDownInTileMap) {
@@ -776,7 +776,7 @@ function seemsThat9SliceIsSelected(): boolean {
   )
 }
 
-$canvas.addEventListener("mouseleave", function () {
+$tileMap.addEventListener("mouseleave", function () {
   previewTiles = null
   renderTileMap()
 })
@@ -802,7 +802,7 @@ window.addEventListener("pointerup", function () {
   }
 })
 
-$canvas.addEventListener("pointerup", function (event) {
+$tileMap.addEventListener("pointerup", function (event) {
   if (isInPasteMode) {
     paste()
   }
@@ -1266,8 +1266,8 @@ function renderTileMap() {
   const area = {
     from: convertCanvasPositionToCellPosition({ x: 0, y: 0 }),
     to: convertCanvasPositionToCellPosition({
-      x: $canvas.width - 1,
-      y: $canvas.height - 1,
+      x: $tileMap.width - 1,
+      y: $tileMap.height - 1,
     }),
   }
 
@@ -1295,18 +1295,18 @@ function renderGrid() {
 
     for (
       let y = -Number(tileMapViewport.value.y - adjustedTileMapViewportY);
-      y < $canvas.height;
+      y < $tileMap.height;
       y += app.tileMap.value.tileSize.height
     ) {
-      context.fillRect(0, y - 1, $canvas.width, 2)
+      context.fillRect(0, y - 1, $tileMap.width, 2)
     }
 
     for (
       let x = -Number(tileMapViewport.value.x - adjustedTileMapViewportX);
-      x < $canvas.width;
+      x < $tileMap.width;
       x += app.tileMap.value.tileSize.width
     ) {
-      context.fillRect(x - 1, 0, 2, $canvas.height)
+      context.fillRect(x - 1, 0, 2, $tileMap.height)
     }
   }
 }
@@ -1547,9 +1547,9 @@ window.addEventListener("keydown", function (event) {
 
 app.isDragModeEnabled.subscribe((isDragModeEnabled) => {
   if (isDragModeEnabled) {
-    $canvas.classList.add("tile-map--dragging")
+    $tileMap.classList.add("tile-map--dragging")
   } else {
-    $canvas.classList.remove("tile-map--dragging")
+    $tileMap.classList.remove("tile-map--dragging")
   }
 })
 
