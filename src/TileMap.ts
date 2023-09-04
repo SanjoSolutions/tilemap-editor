@@ -7,8 +7,8 @@ import type { TileSetID } from "./TileSetID.js"
 
 export class TileMap {
   tileSize: Size = {
-    width: 0,
-    height: 0,
+    width: 32,
+    height: 32,
   }
   tileSets: Record<TileSetID, TileSet> = {}
   // TODO: Make tiles reactive

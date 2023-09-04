@@ -15,9 +15,7 @@ import type { Tile } from "./Tile.js"
 import { TileLayer } from "./TileLayer.js"
 import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
 import { abs, halfOfCeiled, min } from "./bigint.js"
-
 import { TileMap } from "./TileMap.js"
-
 import type { FromToArea } from "./FromToArea.js"
 import type { TileSet } from "./TileSet.js"
 import { Tool } from "./Tool.js"
@@ -400,18 +398,12 @@ function previewFill(position: CellPosition): void {
 }
 
 function fill(cellPosition: CellPosition): void {
-  backUpMap()
+  app.backUpMap()
   doAFillMethod(cellPosition, function (tile, selectedTile) {
     setTileOnCurrentLevel(tile, selectedTile)
   })
   renderTileMap()
   saveTileMap()
-}
-
-const backups: TileMap[] = []
-
-function backUpMap() {
-  backups.push(app.tileMap.value.copy())
 }
 
 function doAFillMethod(
@@ -763,7 +755,7 @@ $canvas.addEventListener("pointerup", function (event) {
 function area() {
   const selectedTileSetTiles = app.selectedTileSetTiles.value
   if (selectedTileSetTiles && selectedTilesInTileMap) {
-    backUpMap()
+    app.backUpMap()
 
     const numberOfRows =
       selectedTileSetTiles.height / app.tileMap.value.tileSize.height
@@ -795,7 +787,7 @@ function area() {
 
 function setTilesWith9SliceMethod() {
   if (selectedTilesInTileMap) {
-    backUpMap()
+    app.backUpMap()
 
     const baseRow = selectedTilesInTileMap.row
     const baseColumn = selectedTilesInTileMap.column
@@ -889,14 +881,6 @@ function do9SliceMethodWithSelectedTiles(
       )
     })
   }
-}
-
-function calculateNumberOfRows(height: bigint): bigint {
-  return height / BigInt(app.tileMap.value.tileSize.height)
-}
-
-function calculateNumberOfColumns(width: bigint): bigint {
-  return width / BigInt(app.tileMap.value.tileSize.width)
 }
 
 const toggleGridButton = menuIconBar.querySelector(
@@ -1057,57 +1041,9 @@ async function loadFileAsDataUrl(url: string): Promise<string> {
 }
 
 function setTiles(position: CellPosition): void {
-  if (app.selectedTileSetTiles.value) {
-    backUpMap()
-
-    const baseRow = position.row
-    const baseColumn = position.column
-
-    const numberOfSelectedRowsInTileSet = Number(
-      calculateNumberOfRows(BigInt(app.selectedTileSetTiles.value.height)),
-    )
-    const numberOfSelectedColumnsInTileSet = Number(
-      calculateNumberOfColumns(BigInt(app.selectedTileSetTiles.value.width)),
-    )
-
-    let somethingHasChanged = false
-    for (
-      let rowOffset = 0;
-      rowOffset < numberOfSelectedRowsInTileSet;
-      rowOffset++
-    ) {
-      for (
-        let columnOffset = 0;
-        columnOffset < numberOfSelectedColumnsInTileSet;
-        columnOffset++
-      ) {
-        const row = baseRow + BigInt(columnOffset)
-        const column = baseColumn + BigInt(columnOffset)
-
-        const tile = {
-          x:
-            app.selectedTileSetTiles.value.x +
-            columnOffset * app.tileMap.value.tileSize.width,
-          y:
-            app.selectedTileSetTiles.value.y +
-            rowOffset * app.tileMap.value.tileSize.height,
-          tileSet: retrieveSelectedTileSetID(),
-        }
-
-        const cellPosition = { row, column }
-        const hasTileBeenSet = setTileOnCurrentLevel(cellPosition, tile)
-        somethingHasChanged = somethingHasChanged || hasTileBeenSet
-
-        renderTile(cellPosition)
-      }
-    }
-    if (somethingHasChanged) {
-      renderGrid()
-      saveTileMap()
-    } else {
-      backups.pop()
-    }
-  }
+  app.useToolAt(position)
+  renderTileMap()
+  saveTileMap()
 }
 
 function setTileOnCurrentLevel(position: CellPosition, tile: Tile) {
@@ -1525,9 +1461,8 @@ function isNoModifierKeyPressed(event: KeyboardEvent) {
 }
 
 function undo() {
-  const lastBackup = backups.pop()
+  const lastBackup = app.undo()
   if (lastBackup) {
-    app.tileMap.next(lastBackup)
     renderTileMap()
     saveTileMap()
   }
@@ -1559,7 +1494,7 @@ function copy() {
 function cut() {
   if (app.activeTool.value === "selection") {
     copy()
-    backUpMap()
+    app.backUpMap()
     if (renderOnlyCurrentLevel) {
       removeTiles(
         app.tileMap.value.tiles[app.level.value],
@@ -1630,7 +1565,7 @@ function startPasting() {
 }
 
 function paste(): void {
-  backUpMap()
+  app.backUpMap()
 
   doSomethingWithCopiedTiles(function ({ row, column }, copiedTile) {
     if (hasBeenCopiedForOneLevel) {
@@ -1830,6 +1765,7 @@ function determineNextID(tileSets: Record<number, TileSet>) {
 }
 
 function selectTileSet(id: number): void {
+  app.selectedTileSet.next(id)
   $tileSetSelect.value = String(id)
   const tileSet = app.tileMap.value.tileSets[id]
   $tileSet.src = tileSet.content
@@ -1837,7 +1773,7 @@ function selectTileSet(id: number): void {
 }
 
 function retrieveSelectedTileSetID() {
-  return parseInt($tileSetSelect.value, 10)
+  return app.selectedTileSet.value
 }
 
 $tileSetSelect.addEventListener("change", function () {
