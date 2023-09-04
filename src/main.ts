@@ -240,10 +240,6 @@ function adjustToStep(value: number, step: number): number {
   return Math.floor(value / step) * step
 }
 
-function adjustToStepBigInt(value: bigint, step: number): bigint {
-  return adjustToStepBigIntScaled(value, step) / 100n
-}
-
 function adjustToStepBigIntScaled(value: bigint, step: number): bigint {
   const multipliedStep = BigInt(Math.round(step * 100))
   let a = (value * 100n) / multipliedStep
@@ -799,7 +795,7 @@ window.addEventListener("pointerup", function () {
   }
 })
 
-$tileMap.addEventListener("pointerup", function (event) {
+$tileMap.addEventListener("pointerup", function () {
   if (isInPasteMode) {
     paste()
   }
@@ -2107,7 +2103,7 @@ function removeTileSet(id: number): void {
   })
 }
 
-app.scale.subscribe(function (scale) {
+app.scale.subscribe(function () {
   resetScale()
   updateContextScale()
   renderTileMap()
