@@ -536,8 +536,8 @@ function selectTileInTileMap(position: CellPosition): void {
   selectedTilesInTileMap = {
     row: position.row,
     column: position.column,
-    width: BigInt(app.tileMap.value.tileSize.width),
-    height: BigInt(app.tileMap.value.tileSize.height),
+    width: 1n,
+    height: 1n,
   }
 
   if (app.activeTool.value === "selection") {
