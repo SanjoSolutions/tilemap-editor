@@ -3,11 +3,19 @@ import type { Area } from "./Area.js"
 import { calculateNumberOfColumns } from "./calculateNumberOfColumns.js"
 import { calculateNumberOfRows } from "./calculateNumberOfRows.js"
 import type { CellPosition } from "./CellPosition.js"
+import { findIndexOfClosestNumber } from "./findIndexOfClosestNumber.js"
 import type { Level } from "./Level.js"
 import { TileLayer } from "./TileLayer.js"
 import type { TileMap } from "./TileMap.js"
 import { createTileMapNullObject } from "./TileMap.js"
 import { Tool } from "./Tool.js"
+
+const scales = [
+  0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4,
+  5,
+]
+
+const DEFAULT_SCALE = 1
 
 export class App {
   activeTool = new BehaviorSubject<Tool | null>(null)
@@ -17,6 +25,7 @@ export class App {
   isDragModeEnabled = new BehaviorSubject<boolean>(false)
   selectedTileSet = new BehaviorSubject<number>(0)
   backups: TileMap[] = []
+  scale: BehaviorSubject<number> = new BehaviorSubject<number>(DEFAULT_SCALE)
 
   set level(level: Level) {
     if (level >= 0) {
@@ -73,6 +82,20 @@ export class App {
       this.tileMap.next(lastBackup)
     }
     return lastBackup ?? null
+  }
+
+  zoomOut(): void {
+    const index = findIndexOfClosestNumber(scales, this.scale.value)
+    this.scale.next(scales[Math.max(index - 1, 0)])
+  }
+
+  zoomIn(): void {
+    const index = findIndexOfClosestNumber(scales, this.scale.value)
+    this.scale.next(scales[Math.min(index + 1, scales.length - 1)])
+  }
+
+  resetZoom(): void {
+    this.scale.next(DEFAULT_SCALE)
   }
 
   private usePenToolAt(position: CellPosition): void {

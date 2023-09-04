@@ -1,6 +1,7 @@
 import { App } from "./App.js"
 import { expectTileAt } from "./testing/expectTileAt.js"
 import { createAppFixture } from "./tests/createAppFixture.js"
+
 describe("App", () => {
   describe("incrementLevel", () => {
     it("increments the level", () => {
@@ -48,6 +49,43 @@ describe("App", () => {
       const app = new App()
       app.level = 1
       expect(app.currentLevelTileLayer).toBeDefined()
+    })
+  })
+
+  describe("zoomOut", () => {
+    it("zooms out from 1 to 0.9", () => {
+      const app = new App()
+      app.scale.next(1)
+      app.zoomOut()
+      expect(app.scale.value).toEqual(0.9)
+    })
+
+    it("zooms out from 0.9 to 0.8", () => {
+      const app = new App()
+      app.scale.next(0.9)
+      app.zoomOut()
+      expect(app.scale.value).toEqual(0.8)
+    })
+
+    it("zooms out from 0.8 to 0.75", () => {
+      const app = new App()
+      app.scale.next(0.8)
+      app.zoomOut()
+      expect(app.scale.value).toEqual(0.75)
+    })
+
+    it("zooms out from 0.75 to 0.67", () => {
+      const app = new App()
+      app.scale.next(0.75)
+      app.zoomOut()
+      expect(app.scale.value).toEqual(0.67)
+    })
+
+    it("zooms out from 0.67 to 0.50", () => {
+      const app = new App()
+      app.scale.next(0.67)
+      app.zoomOut()
+      expect(app.scale.value).toEqual(0.5)
     })
   })
 })
