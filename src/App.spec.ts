@@ -36,4 +36,18 @@ describe("App", () => {
       expectTileAt(app, { row: 0n, column: 0n }, { x: 0, y: 0, tileSet: 0 })
     })
   })
+
+  describe("currentLevelTileLayer", () => {
+    it("returns a tile layer after the level has been incremented", () => {
+      const app = new App()
+      app.incrementLevel()
+      expect(app.currentLevelTileLayer).toBeDefined()
+    })
+
+    it("returns a tile layer after the level has been set to a higher level", () => {
+      const app = new App()
+      app.level = 1
+      expect(app.currentLevelTileLayer).toBeDefined()
+    })
+  })
 })

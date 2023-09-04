@@ -64,7 +64,7 @@ const $level = document.querySelector(".level") as HTMLInputElement
   if (levelSerialized) {
     const level = parseInt(levelSerialized, 10)
     if (level) {
-      app.level.next(level)
+      app.level = level
     }
   }
 }
@@ -95,7 +95,7 @@ let isGridShown: boolean = isGridShownSerialized
   : true
 
 $level.addEventListener("change", function (event) {
-  app.level.next(Number((event.target as HTMLInputElement).value))
+  app.level = Number((event.target as HTMLInputElement).value)
 })
 
 const $sidebar = document.querySelector(".sidebar") as HTMLDivElement
@@ -1041,7 +1041,7 @@ async function loadFileAsDataUrl(url: string): Promise<string> {
 }
 
 function setTiles(position: CellPosition): void {
-  app.useToolAt(position)
+  app.useToolAt(position.row, position.column)
   renderTileMap()
   saveTileMap()
 }
@@ -1297,7 +1297,7 @@ async function loadTileMap() {
     if (extension === ".json") {
       app.tileMap.next(parseJSONTileMap(content))
     }
-    app.level.next(app.tileMap.value.tiles.length - 1)
+    app.level = app.tileMap.value.tiles.length - 1
 
     $tileHover.style.width = app.tileMap.value.tileSize.width + "px"
     $tileHover.style.height = app.tileMap.value.tileSize.height + "px"

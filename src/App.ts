@@ -2,6 +2,7 @@ import { BehaviorSubject } from "rxjs"
 import type { Area } from "./Area.js"
 import type { CellPosition } from "./CellPosition.js"
 import type { Level } from "./Level.js"
+import { TileLayer } from "./TileLayer.js"
 import type { TileMap } from "./TileMap.js"
 import { createTileMapNullObject } from "./TileMap.js"
 import { Tool } from "./Tool.js"
@@ -20,6 +21,7 @@ export class App {
   set level(level: Level) {
     if (level >= 0) {
       this._level.next(level)
+      this.ensureTileLayer()
     } else {
       throw new Error("Only levels greater than or equal to 0 are supported.")
     }
@@ -34,12 +36,12 @@ export class App {
   }
 
   incrementLevel() {
-    this._level.next(this._level.value + 1)
+    this.level = this._level.value + 1
   }
 
   decrementLevel() {
     if (this._level.value > 0) {
-      this._level.next(this._level.value - 1)
+      this.level = this._level.value - 1
     }
   }
 
@@ -59,6 +61,18 @@ export class App {
     if (tool === Tool.Pen) {
       this.usePenToolAt({ row, column })
     }
+  }
+
+  backUpMap(): void {
+    this.backups.push(this.tileMap.value.copy())
+  }
+
+  undo(): TileMap | null {
+    const lastBackup = this.backups.pop()
+    if (lastBackup) {
+      this.tileMap.next(lastBackup)
+    }
+    return lastBackup ?? null
   }
 
   private usePenToolAt(position: CellPosition): void {
@@ -119,15 +133,10 @@ export class App {
     }
   }
 
-  backUpMap(): void {
-    this.backups.push(this.tileMap.value.copy())
-  }
-
-  undo(): TileMap | null {
-    const lastBackup = this.backups.pop()
-    if (lastBackup) {
-      this.tileMap.next(lastBackup)
+  private ensureTileLayer() {
+    const level = this._level.value
+    if (!this.tileMap.value.tiles[level]) {
+      this.tileMap.value.tiles[level] = new TileLayer()
     }
-    return lastBackup ?? null
   }
 }
