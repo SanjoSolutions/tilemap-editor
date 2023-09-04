@@ -1710,7 +1710,7 @@ function removeTilesOnCurrentLevel(tileLayer: TileLayer, area: CellArea): void {
   for (let row = area.row; row < area.row + area.height; row++) {
     for (
       let column = area.column;
-      column <= area.column + area.width;
+      column < area.column + area.width;
       column++
     ) {
       tileLayer.removeTile({ row, column })
