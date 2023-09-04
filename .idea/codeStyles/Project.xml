@@ -10,11 +10,6 @@
     </option>
     <option name="RIGHT_MARGIN" value="80" />
     <option name="SOFT_MARGINS" value="80" />
-    <option name="DO_NOT_FORMAT">
-      <list>
-        <fileSet type="globPattern" pattern="**/*" />
-      </list>
-    </option>
     <CssCodeStyleSettings>
       <option name="HEX_COLOR_LOWER_CASE" value="true" />
       <option name="ENFORCE_QUOTES_ON_FORMAT" value="true" />

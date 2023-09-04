@@ -3,23 +3,27 @@ import * as path from "node:path"
 import { BehaviorSubject } from "rxjs"
 import { App } from "./App.js"
 import type { Area } from "./Area.js"
+import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
+import "./authentication/logIn.js"
+import "./authentication/logOut.js"
+import "./authentication/register.js"
+import "./authentication/user.js"
+import { abs, halfOfCeiled, min } from "./bigint.js"
 import type { CellArea } from "./CellArea.js"
 import type { CellAreaFromTo } from "./CellAreaFromTo.js"
 import type { CellPosition } from "./CellPosition.js"
 import { createCellPositionKey } from "./CellPosition.js"
+import type { FromToArea } from "./FromToArea.js"
 import type { MultiLayerTile } from "./MultiLayerTile.js"
+import { Database } from "./persistence.js"
 import type { Point } from "./Point.js"
 import type { Position } from "./Position.js"
 import type { PositionBigInt } from "./PositionBigInt.js"
 import type { Tile } from "./Tile.js"
 import { TileLayer } from "./TileLayer.js"
-import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
-import { abs, halfOfCeiled, min } from "./bigint.js"
 import { TileMap } from "./TileMap.js"
-import type { FromToArea } from "./FromToArea.js"
 import type { TileSet } from "./TileSet.js"
 import { Tool } from "./Tool.js"
-import { Database } from "./persistence.js"
 
 declare global {
   interface Window {
@@ -1361,7 +1365,6 @@ async function saveMap() {
 }
 
 window.addEventListener("keydown", function (event) {
-  console.log(event.code)
   if (!isModalOpen) {
     if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "z") {
       event.preventDefault()
