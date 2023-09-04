@@ -1,6 +1,9 @@
 import { getAuth, onAuthStateChanged } from "firebase/auth"
 import { initializeFirebaseApp } from "../firebaseApp.js"
 
+const $collaborateButton = document.querySelector(
+  "#collaborateButton",
+) as HTMLButtonElement
 const $logInButton = document.querySelector("#logInButton") as HTMLButtonElement
 const $logOutButton = document.querySelector(
   "#logOutButton",
@@ -9,16 +12,26 @@ const $registerButton = document.querySelector(
   "#registerButton",
 ) as HTMLButtonElement
 
+const elementsToShowWhenLoggedIn = new Set([$collaborateButton, $logOutButton])
+
+const elementsToShowWhenLoggedOut = new Set([$logInButton, $registerButton])
+
 initializeFirebaseApp()
 const auth = getAuth()
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    $logInButton.classList.add("d-none")
-    $registerButton.classList.add("d-none")
-    $logOutButton.classList.remove("d-none")
+    for (const element of elementsToShowWhenLoggedIn) {
+      element.classList.remove("d-none")
+    }
+    for (const element of elementsToShowWhenLoggedOut) {
+      element.classList.add("d-none")
+    }
   } else {
-    $logOutButton.classList.add("d-none")
-    $logInButton.classList.remove("d-none")
-    $registerButton.classList.remove("d-none")
+    for (const element of elementsToShowWhenLoggedIn) {
+      element.classList.add("d-none")
+    }
+    for (const element of elementsToShowWhenLoggedOut) {
+      element.classList.remove("d-none")
+    }
   }
 })
