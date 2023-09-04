@@ -716,12 +716,12 @@ function expandSelectTilesInTileMap(event: PointerEvent): void {
   if (firstPositionTileMap) {
     const column =
       adjustToStepBigInt(
-        tileMapViewport.value.x + BigInt(event.offsetX),
+        tileMapViewport.value.x + BigInt(Math.round(event.offsetX)),
         BigInt(app.tileMap.value.tileSize.width),
       ) / BigInt(app.tileMap.value.tileSize.width)
     const row =
       adjustToStepBigInt(
-        tileMapViewport.value.y + BigInt(event.offsetY),
+        tileMapViewport.value.y + BigInt(Math.round(event.offsetY)),
         BigInt(app.tileMap.value.tileSize.height),
       ) / BigInt(app.tileMap.value.tileSize.height)
     selectedTilesInTileMap = {
