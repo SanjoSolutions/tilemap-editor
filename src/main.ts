@@ -19,6 +19,7 @@ import { TileMap } from "./TileMap.js"
 import type { FromToArea } from "./FromToArea.js"
 import type { TileSet } from "./TileSet.js"
 import { Tool } from "./Tool.js"
+import { Database } from "./persistence.js"
 
 declare global {
   interface Window {
@@ -51,6 +52,7 @@ if (window.IS_DEVELOPMENT) {
 const $canvas = document.querySelector(".tile-map") as HTMLCanvasElement
 const context = $canvas.getContext("2d")!
 
+const database = new Database()
 const app = new App()
 const tileMapViewport = new BehaviorSubject<PositionBigInt>({
   x: 0n,
@@ -214,17 +216,22 @@ function adjustToStep(value: number, step: number): number {
 }
 
 function adjustToStepBigInt(value: bigint, step: bigint): bigint {
-  return (value / step) * step
+  let a = value / step
+  if (value < 0) {
+    a--
+  }
+  return a * step
 }
 
 let previewTiles: CellArea | null = null
 
 const DEFAULT_TILE_WIDTH = 32
 const DEFAULT_TILE_HEIGHT = 32
-const tileMapSerialized = localStorage.getItem("tileMap")
+await database.open()
+const tileMapFromDatabase = await database.load("tileMap")
 app.tileMap.next(
-  tileMapSerialized
-    ? migrateTileMap(parseJSONTileMap(tileMapSerialized))
+  tileMapFromDatabase
+    ? migrateTileMap(TileMap.fromRawObject(tileMapFromDatabase))
     : await createTileMap(),
 )
 
@@ -314,14 +321,12 @@ $tileSelected.style.height = app.tileMap.value.tileSize.height + "px"
 
 renderGrid()
 
-if (tileMapSerialized) {
-  if ($tileSet.complete) {
+if ($tileSet.complete) {
+  renderTileMap()
+} else {
+  $tileSet.addEventListener("load", function () {
     renderTileMap()
-  } else {
-    $tileSet.addEventListener("load", function () {
-      renderTileMap()
-    })
-  }
+  })
 }
 
 function retrieveTile(position: CellPosition): MultiLayerTile {
@@ -990,7 +995,7 @@ function updateRenderOnlyCurrentLevelButton() {
 }
 
 const saveTileMap = debounce(function () {
-  localStorage.setItem("tileMap", JSON.stringify(app.tileMap.value))
+  database.save("tileMap", app.tileMap.value)
 })
 
 async function createNewTileMap(): Promise<void> {
@@ -1018,6 +1023,7 @@ async function createTileMap() {
     name: "tileset.png",
     content: await loadFileAsDataUrl("tileset.png"),
   }
+
   tileMap.tiles[0] = new TileLayer()
   return tileMap
 }
@@ -1192,11 +1198,17 @@ function renderPreviewTiles() {
 tileMapViewport.subscribe(renderTileMap)
 
 function renderTileMap() {
-  context.clearRect(0, 0, $canvas.width, $canvas.height)
+  const area = {
+    from: convertCanvasPositionToCellPosition({ x: 0, y: 0 }),
+    to: convertCanvasPositionToCellPosition({
+      x: $canvas.width - 1,
+      y: $canvas.height - 1,
+    }),
+  }
 
-  for (let y = 0; y < $canvas.height; y += app.tileMap.value.tileSize.height) {
-    for (let x = 0; x < $canvas.width; x += app.tileMap.value.tileSize.width) {
-      renderTile(convertCanvasPositionToCellPosition({ x, y }))
+  for (let row = area.from.row; row <= area.to.row; row++) {
+    for (let column = area.from.column; column <= area.to.column; column++) {
+      renderTile({ row, column })
     }
   }
 
@@ -1307,14 +1319,8 @@ async function loadTileMap() {
 }
 
 function parseJSONTileMap(content: string): TileMap {
-  const tileMap = new TileMap()
-  Object.assign(tileMap, JSON.parse(content))
-  tileMap.tiles = tileMap.tiles.map((rawTileLayer) => {
-    const tileLayer = new TileLayer()
-    tileLayer.tiles = rawTileLayer.tiles
-    return tileLayer
-  })
-  return tileMap
+  const rawObjectTileMap = JSON.parse(content)
+  return TileMap.fromRawObject(rawObjectTileMap)
 }
 
 async function saveMap() {

@@ -5,6 +5,12 @@ import { TileLayer } from "./TileLayer.js"
 import type { TileSet } from "./TileSet.js"
 import type { TileSetID } from "./TileSetID.js"
 
+interface RawObjectTileMap {
+  tileSize: Size
+  tileSets: Record<TileSetID, TileSet>
+  tiles: TileLayer[]
+}
+
 export class TileMap {
   tileSize: Size = {
     width: 32,
@@ -13,6 +19,23 @@ export class TileMap {
   tileSets: Record<TileSetID, TileSet> = {}
   // TODO: Make tiles reactive
   tiles: TileLayer[] = [new TileLayer()]
+
+  static fromRawObject(rawObject: RawObjectTileMap) {
+    const tileMap = new TileMap()
+    tileMap.tileSize = { ...rawObject.tileSize }
+    tileMap.tileSets = Object.fromEntries(
+      Object.entries(rawObject.tileSets).map(([id, tileSet]) => [
+        id,
+        { ...tileSet },
+      ]),
+    )
+    tileMap.tiles = rawObject.tiles.map((rawTileLayer) => {
+      const tileLayer = new TileLayer()
+      tileLayer.tiles = rawTileLayer.tiles
+      return tileLayer
+    })
+    return tileMap
+  }
 
   setMultiLayerTile(
     { row, column }: CellPosition,
