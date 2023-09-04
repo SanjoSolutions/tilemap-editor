@@ -259,7 +259,7 @@ app.tileMap.next(
   tileMapFromDatabase
     ? migrateTileMap(
         TileMap.fromRawObject(
-          JSON.parse(await decompressString(tileMapFromDatabase)),
+          JSON.parse(await decompressBlob(tileMapFromDatabase)),
         ),
       )
     : await createTileMap(),
@@ -1052,7 +1052,7 @@ function updateRenderOnlyCurrentLevelButton() {
 const saveTileMap = debounce(async function () {
   database.save(
     "tileMap",
-    await readReadableStream(createCompressedTileMapStream()),
+    await readReadableStreamAsGzipBlob(createCompressedTileMapStream()),
   )
 })
 
@@ -1383,7 +1383,7 @@ async function loadTileMap() {
     } else {
       stream = file.stream()
     }
-    const content = await readReadableStream(stream)
+    const content = await readReadableStreamAsUTF8(stream)
     app.tileMap.next(parseJSONTileMap(content))
     app.level = app.tileMap.value.tiles.length - 1
 
@@ -1430,12 +1430,15 @@ async function saveMap() {
 }
 
 function createReadableTileMapStream(): ReadableStream {
-  return createReadableStream(JSON.stringify(app.tileMap.value))
+  return createReadableStream(
+    JSON.stringify(app.tileMap.value),
+    "application/json",
+  )
 }
 
-function createReadableStream(content: string): ReadableStream {
+function createReadableStream(content: string, type: string): ReadableStream {
   return new Blob([content], {
-    type: "application/json",
+    type,
   }).stream()
 }
 
@@ -1448,17 +1451,18 @@ function createCompressedTileMapStream(): ReadableStream {
 }
 
 function createDecompressedStream(stream: ReadableStream): ReadableStream {
-  const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"))
-  return decompressedStream
+  return stream.pipeThrough(new DecompressionStream("gzip"))
 }
 
-async function decompressString(compressedContent: string): Promise<string> {
-  const compressedStream = createReadableStream(compressedContent)
+async function decompressBlob(compressedContent: Blob): Promise<string> {
+  const compressedStream = compressedContent.stream()
   const decompressedStream = createDecompressedStream(compressedStream)
-  return await readReadableStream(decompressedStream)
+  return await readReadableStreamAsUTF8(decompressedStream)
 }
 
-async function readReadableStream(stream: ReadableStream): Promise<string> {
+async function readReadableStreamAsUTF8(
+  stream: ReadableStream,
+): Promise<string> {
   const reader = stream.getReader()
   let content = ""
   let result = await reader.read()
@@ -1468,6 +1472,19 @@ async function readReadableStream(stream: ReadableStream): Promise<string> {
     result = await reader.read()
   }
   return content
+}
+
+async function readReadableStreamAsGzipBlob(
+  stream: ReadableStream,
+): Promise<Blob> {
+  const reader = stream.getReader()
+  let chunks = []
+  let result = await reader.read()
+  while (!result.done) {
+    chunks.push(result.value)
+    result = await reader.read()
+  }
+  return new Blob(chunks, { type: "application/gzip" })
 }
 
 window.addEventListener("keydown", function (event) {
