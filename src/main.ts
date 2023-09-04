@@ -25,24 +25,23 @@ import { TileMap } from "./TileMap.js"
 import type { TileSet } from "./TileSet.js"
 import { Tool } from "./Tool.js"
 
+interface FileType {
+  description: string
+  accept: Record<string, string[]>
+}
+
 declare global {
   interface Window {
     IS_DEVELOPMENT: boolean
     showOpenFilePicker(options?: {
       multiple?: boolean
       excludeAcceptAllOption?: boolean
-      types?: {
-        description: string
-        accept: Record<string, string[]>
-      }[]
+      types?: FileType[]
     }): Promise<FileSystemFileHandle[]>
     showSaveFilePicker(options?: {
       excludeAcceptAllOption?: boolean
       suggestedName?: string
-      types?: {
-        description: string
-        accept: Record<string, string[]>
-      }[]
+      types?: FileType[]
     }): Promise<FileSystemFileHandle>
   }
 }
@@ -1317,7 +1316,13 @@ function debounce(fn: Function, delay = 1000) {
   }
 }
 
-const types = [
+const types: FileType[] = [
+  {
+    description: "Compressed map",
+    accept: {
+      "application/gzip": [".json.gz"],
+    },
+  },
   {
     description: "Map",
     accept: {
@@ -1340,6 +1345,12 @@ async function loadTileMap() {
       ...filePickerBaseOptions,
       types: [
         {
+          description: "Compressed Map",
+          accept: {
+            "application/gzip": [".json.gz"],
+          },
+        },
+        {
           description: "Map",
           accept: {
             "text/json": [".json"],
@@ -1359,10 +1370,24 @@ async function loadTileMap() {
 
     localStorage.setItem("openFileName", fileName)
     const file = await fileHandle.getFile()
-    const content = await file.text()
-    if (extension === ".json") {
-      app.tileMap.next(parseJSONTileMap(content))
+    let stream: ReadableStream
+    if (extension.endsWith(".gz")) {
+      const decompressedStream = file
+        .stream()
+        .pipeThrough(new DecompressionStream("gzip"))
+      stream = decompressedStream
+    } else {
+      stream = file.stream()
     }
+    const reader = stream.getReader()
+    let content = ""
+    let result = await reader.read()
+    const textDecoder = new TextDecoder()
+    while (!result.done) {
+      content += textDecoder.decode(result.value)
+      result = await reader.read()
+    }
+    app.tileMap.next(parseJSONTileMap(content))
     app.level = app.tileMap.value.tiles.length - 1
 
     $tileHover.style.width = app.tileMap.value.tileSize.width + "px"
@@ -1372,7 +1397,6 @@ async function loadTileMap() {
     $tileSelected.style.height = app.tileMap.value.tileSize.height + "px"
 
     renderTileMap()
-
     saveTileMap()
   }
 }
@@ -1387,7 +1411,7 @@ async function saveMap() {
   try {
     handle = await window.showSaveFilePicker({
       ...filePickerBaseOptions,
-      suggestedName: localStorage.getItem("openFileName") || "map.json",
+      suggestedName: localStorage.getItem("openFileName") || "map.json.gz",
     })
   } catch (error: any) {
     if (error.code !== ABORT_ERROR) {
@@ -1395,9 +1419,22 @@ async function saveMap() {
     }
   }
   if (handle) {
-    const stream = await handle.createWritable()
-    await stream.write(JSON.stringify(app.tileMap.value, null, 2))
-    await stream.close()
+    const fileName = handle.name
+    const extension = path.extname(fileName)
+    const contentStream = new Blob([JSON.stringify(app.tileMap.value)], {
+      type: "application/json",
+    }).stream()
+    let stream: ReadableStream
+    if (extension.endsWith(".gz")) {
+      const compressedStream = contentStream.pipeThrough(
+        new CompressionStream("gzip"),
+      )
+      stream = compressedStream
+    } else {
+      stream = contentStream
+    }
+    const fileStream = await handle.createWritable()
+    await stream.pipeTo(fileStream)
   }
 }
 
