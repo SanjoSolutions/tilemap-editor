@@ -374,7 +374,7 @@ function convertEventToPosition(event: PointerEvent): Position {
 function doPointerDownOnTileMap(cellPosition: CellPosition): void {
   isPointerDownInTileMap = true
 
-  if (!isInPasteMode) {
+  if (!isInPasteMode && !app.isDragModeEnabled.value) {
     if (app.activeTool.value === "fill") {
       fill(cellPosition)
     } else {
@@ -476,12 +476,10 @@ function retrieveNeighborsWithSetTile(
 
 function retrieveNeighbors(cellPosition: CellPosition): CellPosition[] {
   const neighbors: CellPosition[] = []
-  if (cellPosition.row >= 1) {
-    neighbors.push({
-      row: cellPosition.row - 1n,
-      column: cellPosition.column,
-    })
-  }
+  neighbors.push({
+    row: cellPosition.row - 1n,
+    column: cellPosition.column,
+  })
   neighbors.push({
     row: cellPosition.row,
     column: cellPosition.column + 1n,
@@ -490,12 +488,10 @@ function retrieveNeighbors(cellPosition: CellPosition): CellPosition[] {
     row: cellPosition.row + 1n,
     column: cellPosition.column,
   })
-  if (cellPosition.column >= 1) {
-    neighbors.push({
-      row: cellPosition.row,
-      column: cellPosition.column - 1n,
-    })
-  }
+  neighbors.push({
+    row: cellPosition.row,
+    column: cellPosition.column - 1n,
+  })
   return neighbors
 }
 
