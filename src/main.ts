@@ -602,29 +602,20 @@ function updateSelectedArea() {
 }
 
 function preview9SliceMade() {
+  const selectedTileSetTiles = app.selectedTileSetTiles.value
   const currentSelectedTilesInTileMap = selectedTilesInTileMap
-  if (currentSelectedTilesInTileMap) {
+  if (selectedTileSetTiles && currentSelectedTilesInTileMap) {
     renderTileMap()
 
     do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
-      context.drawImage(
-        $tileSet,
-        tile.x,
-        tile.y,
-        app.tileMap.value.tileSize.width,
-        app.tileMap.value.tileSize.height,
-        Number(
-          (currentSelectedTilesInTileMap.column + column) *
-            BigInt(app.tileMap.value.tileSize.width) -
-            tileMapViewport.value.x,
-        ),
-        Number(
-          (currentSelectedTilesInTileMap.row + row) *
-            BigInt(app.tileMap.value.tileSize.height) -
-            tileMapViewport.value.y,
-        ),
-        app.tileMap.value.tileSize.width,
-        app.tileMap.value.tileSize.height,
+      const replacements = []
+      replacements[app.level.value] = tile
+      renderTile(
+        {
+          row: row + currentSelectedTilesInTileMap.row,
+          column: column + currentSelectedTilesInTileMap.column,
+        },
+        replacements,
       )
     })
   }
