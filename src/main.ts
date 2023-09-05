@@ -1125,22 +1125,23 @@ function renderTiles(area: CellArea): void {
 function convertCellPositionToCanvasPosition(
   cellPosition: CellPosition,
 ): Position {
+  console.log("a", tileMapViewport.value)
   return {
     x: Number(
       (cellPosition.column *
         BigInt(
           Math.round(app.scale.value * app.tileMap.value.tileSize.width * 100),
-        ) -
-        tileMapViewport.value.x) /
-        100n,
+        )) /
+        100n -
+        tileMapViewport.value.x,
     ),
     y: Number(
       (cellPosition.row *
         BigInt(
           Math.round(app.scale.value * app.tileMap.value.tileSize.height * 100),
-        ) -
-        tileMapViewport.value.y) /
-        100n,
+        )) /
+        100n -
+        tileMapViewport.value.y,
     ),
   }
 }
@@ -1325,6 +1326,7 @@ function renderGridOnArea(area: CellArea): void {
     const scaledTileWidth = app.scale.value * app.tileMap.value.tileSize.width
 
     const { x: fromX, y: fromY } = convertCellPositionToCanvasPosition(area)
+    console.log(area.row, area.column, fromX, fromY)
     const width = Number(area.width) * scaledTileWidth
     const height = Number(area.height) * scaledTileHeight
     const toX = fromX + width - 1
