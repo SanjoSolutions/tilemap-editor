@@ -54,6 +54,41 @@ if (window.IS_DEVELOPMENT) {
   )
 }
 
+const tileCache = {
+  _cache: new Map<string, OffscreenCanvas>(),
+  retrieveTile(tile: Tile): OffscreenCanvas | null {
+    const key = `${tile.tileSet}_${tile.x}_${tile.y}`
+    const cachedTile = this._cache.get(key)
+    if (cachedTile) {
+      return cachedTile
+    } else {
+      const tileSet = tileSets[tile.tileSet]
+      if (tileSet) {
+        const offscreenCanvas = new OffscreenCanvas(
+          app.tileMap.value.tileSize.width,
+          app.tileMap.value.tileSize.height,
+        )
+        const context = offscreenCanvas.getContext("2d")!
+        context.drawImage(
+          tileSet,
+          tile.x,
+          tile.y,
+          app.tileMap.value.tileSize.width,
+          app.tileMap.value.tileSize.height,
+          0,
+          0,
+          app.tileMap.value.tileSize.width,
+          app.tileMap.value.tileSize.height,
+        )
+        this._cache.set(key, offscreenCanvas)
+        return offscreenCanvas
+      } else {
+        return null
+      }
+    }
+  },
+}
+
 const $tileMap = document.querySelector(".tile-map") as HTMLCanvasElement
 const context = $tileMap.getContext("2d")!
 
@@ -1175,10 +1210,10 @@ function convertCellPositionToCanvasPosition2(
 function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
   const tile = retrieveTile(position)
   const renderedAt: Position = convertCellPositionToCanvasPosition(position)
-  const scaledTileWidth = Math.round(
+  const scaledTileWidth = Math.ceil(
     app.scale.value * app.tileMap.value.tileSize.width,
   )
-  const scaledTileHeight = Math.round(
+  const scaledTileHeight = Math.ceil(
     app.scale.value * app.tileMap.value.tileSize.height,
   )
   context.clearRect(
@@ -1196,15 +1231,12 @@ function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
           : tile[level2]
       if (tileOnLayer) {
         context.globalAlpha = level2 > app.level.value ? 0.4 : 1
-        const image =
-          typeof tileOnLayer.tileSet === "number"
-            ? tileSets[tileOnLayer.tileSet]
-            : $tileSet
-        if (image) {
+        const tileSetTile = tileCache.retrieveTile(tileOnLayer)
+        if (tileSetTile) {
           context.drawImage(
-            image,
-            tileOnLayer.x,
-            tileOnLayer.y,
+            tileSetTile,
+            0,
+            0,
             app.tileMap.value.tileSize.width,
             app.tileMap.value.tileSize.height,
             renderedAt.x,
