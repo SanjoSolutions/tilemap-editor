@@ -272,10 +272,11 @@ app.level.subscribe(function (level) {
 })
 
 for (const [id, tileSet] of Object.entries(app.tileMap.value.tileSets)) {
-  createImageFromDataURL(tileSet.content).then((image) => {
-    tileSets[Number(id)] = image as HTMLImageElement
-    renderTileMap()
-  })
+  loadTileSetAsImage(Number(id), tileSet).then(renderTileMap)
+}
+
+async function loadTileSetAsImage(id: number, tileSet: TileSet): Promise<void> {
+  tileSets[id] = await createImageFromDataURL(tileSet.content)
 }
 
 const $tileSetSelect = document.getElementById(
@@ -2215,6 +2216,7 @@ async function showAddTileSetDialog() {
 
 function addTileSet(tileSet: TileSet) {
   const id = determineNextID(app.tileMap.value.tileSets)
+  loadTileSetAsImage(id, tileSet).then(renderTileMap)
   // TODO: Make tileSets reactive
   app.tileMap.value.tileSets[id] = tileSet
   addOptionToTileSetSelect(id, tileSet)
