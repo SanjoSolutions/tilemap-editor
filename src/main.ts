@@ -605,19 +605,29 @@ function preview9SliceMade() {
   const selectedTileSetTiles = app.selectedTileSetTiles.value
   const currentSelectedTilesInTileMap = selectedTilesInTileMap
   if (selectedTileSetTiles && currentSelectedTilesInTileMap) {
-    renderTileMap()
+    const previousPreviewTiles = previewTiles
+    previewTiles = currentSelectedTilesInTileMap
+    if (
+      !previousPreviewTiles ||
+      areCellAreasDifferent(previousPreviewTiles, previewTiles)
+    ) {
+      if (previousPreviewTiles) {
+        renderTiles(previousPreviewTiles)
+        renderGridOnArea(previousPreviewTiles)
+      }
 
-    do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
-      const replacements = []
-      replacements[app.level.value] = tile
-      renderTile(
-        {
-          row: row + currentSelectedTilesInTileMap.row,
-          column: column + currentSelectedTilesInTileMap.column,
-        },
-        replacements,
-      )
-    })
+      do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
+        const replacements = []
+        replacements[app.level.value] = tile
+        renderTile(
+          {
+            row: row + currentSelectedTilesInTileMap.row,
+            column: column + currentSelectedTilesInTileMap.column,
+          },
+          replacements,
+        )
+      })
+    }
   }
 }
 
