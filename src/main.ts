@@ -1125,7 +1125,6 @@ function renderTiles(area: CellArea): void {
 function convertCellPositionToCanvasPosition(
   cellPosition: CellPosition,
 ): Position {
-  console.log("a", tileMapViewport.value)
   return {
     x: Number(
       (cellPosition.column *
@@ -1164,12 +1163,18 @@ function convertCellPositionToCanvasPosition2(
 
 function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
   const tile = retrieveTile(position)
-  const renderedAt: Position = convertCellPositionToCanvasPosition2(position)
+  const renderedAt: Position = convertCellPositionToCanvasPosition(position)
+  const scaledTileWidth = Math.round(
+    app.scale.value * app.tileMap.value.tileSize.width,
+  )
+  const scaledTileHeight = Math.round(
+    app.scale.value * app.tileMap.value.tileSize.height,
+  )
   context.clearRect(
     renderedAt.x,
     renderedAt.y,
-    app.tileMap.value.tileSize.width,
-    app.tileMap.value.tileSize.height,
+    scaledTileWidth,
+    scaledTileHeight,
   )
   if (tile) {
     context.save()
@@ -1193,8 +1198,8 @@ function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
             app.tileMap.value.tileSize.height,
             renderedAt.x,
             renderedAt.y,
-            app.tileMap.value.tileSize.width,
-            app.tileMap.value.tileSize.height,
+            scaledTileWidth,
+            scaledTileHeight,
           )
         }
       }
@@ -1256,7 +1261,7 @@ function renderSelectedTiles(area: CellArea, selectedTileSetTiles: Area): void {
 
 function renderEmptyTile(position: CellPosition): void {
   context.fillStyle = "white"
-  const canvasPosition = convertCellPositionToCanvasPosition2(position)
+  const canvasPosition = convertCellPositionToCanvasPosition(position)
   context.fillRect(
     canvasPosition.x,
     canvasPosition.y,
@@ -1294,6 +1299,8 @@ function renderTileMap() {
     }),
   }
 
+  context.clearRect(0, 0, $tileMap.width, $tileMap.height)
+
   for (let row = area.from.row; row <= area.to.row; row++) {
     for (let column = area.from.column; column <= area.to.column; column++) {
       renderTile({ row, column })
@@ -1316,8 +1323,6 @@ function renderGrid() {
 
 function renderGridOnArea(area: CellArea): void {
   if (isGridShown) {
-    resetScale()
-
     const defaultLineWidth = 2
     const veryZoomedOutLineWidth = 1
     context.fillStyle = "black"
@@ -1326,7 +1331,6 @@ function renderGridOnArea(area: CellArea): void {
     const scaledTileWidth = app.scale.value * app.tileMap.value.tileSize.width
 
     const { x: fromX, y: fromY } = convertCellPositionToCanvasPosition(area)
-    console.log(area.row, area.column, fromX, fromY)
     const width = Number(area.width) * scaledTileWidth
     const height = Number(area.height) * scaledTileHeight
     const toX = fromX + width - 1
@@ -1355,8 +1359,6 @@ function renderGridOnArea(area: CellArea): void {
         )
       }
     }
-
-    updateContextScale()
   }
 }
 
@@ -1844,7 +1846,6 @@ function previewPaste() {
       width: numberOfColumnsCut,
       height: numberOfRowsCut,
     }
-    console.log(previewTiles)
     if (
       !previousPreviewTiles ||
       areCellAreasDifferent(previousPreviewTiles, previewTiles)
@@ -2132,15 +2133,5 @@ function removeTileSet(id: number): void {
 }
 
 app.scale.subscribe(function () {
-  resetScale()
-  updateContextScale()
   renderTileMap()
 })
-
-function resetScale(): void {
-  context.setTransform(1, 0, 0, 1, 0, 0)
-}
-
-function updateContextScale(): void {
-  context.scale(app.scale.value, app.scale.value)
-}
