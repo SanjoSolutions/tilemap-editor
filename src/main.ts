@@ -9,7 +9,7 @@ import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
 // import "./authentication/logOut.js"
 // import "./authentication/register.js"
 // import "./authentication/user.js"
-import { abs, halfOfCeiled, min } from "./bigint.js"
+import { abs, halfOfCeiled, min, toBigInt } from "./bigint.js"
 import type { CellArea } from "./CellArea.js"
 import type { CellAreaFromTo } from "./CellAreaFromTo.js"
 import type { CellFromToArea } from "./CellFromToArea.js"
@@ -21,6 +21,7 @@ import { Database } from "./persistence.js"
 import type { Point } from "./Point.js"
 import type { Position } from "./Position.js"
 import type { PositionBigInt } from "./PositionBigInt.js"
+import type { Size } from "./Size.js"
 import type { Tile } from "./Tile.js"
 import { TileLayer } from "./TileLayer.js"
 import { TileMap } from "./TileMap.js"
@@ -285,7 +286,7 @@ function adjustToStep(value: number, step: number): number {
 }
 
 function adjustToStepBigIntScaled(value: bigint, step: number): bigint {
-  const multipliedStep = BigInt(Math.round(step * 100))
+  const multipliedStep = toBigInt(step * 100)
   let a = (value * 100n) / multipliedStep
   if (value < 0) {
     a--
@@ -425,21 +426,19 @@ function convertCanvasPositionToCellPosition(
   position: Position,
   scale: number = app.scale.value,
 ): CellPosition {
-  const scaledTileHeight = scale * app.tileMap.value.tileSize.height
-  const scaledTileWidth = scale * app.tileMap.value.tileSize.width
-
+  const scaledTileSize = determineScaledTileSize(scale)
   return {
     row: BigInt(
       adjustToStepBigIntScaled(
         tileMapViewport.value.y + BigInt(Math.round(position.y)),
-        scaledTileHeight,
-      ) / BigInt(Math.round(scaledTileHeight * 100)),
+        scaledTileSize.height,
+      ) / toBigInt(scaledTileSize.height * 100),
     ),
     column: BigInt(
       adjustToStepBigIntScaled(
         tileMapViewport.value.x + BigInt(Math.round(position.x)),
-        scaledTileWidth,
-      ) / BigInt(Math.round(scaledTileWidth * 100)),
+        scaledTileSize.width,
+      ) / toBigInt(scaledTileSize.width * 100),
     ),
   }
 }
@@ -626,20 +625,11 @@ function updateSelectedArea() {
     const { x, y } = convertCellPositionToCanvasPosition(selectedTilesInTileMap)
     $selectedArea.style.left = x + "px"
     $selectedArea.style.top = y + "px"
+    const scaledTileSize = determineScaledTileSize(app.scale.value)
     $selectedArea.style.width =
-      (selectedTilesInTileMap.width *
-        BigInt(
-          Math.round(app.scale.value * app.tileMap.value.tileSize.width * 100),
-        )) /
-        100n +
-      "px"
+      selectedTilesInTileMap.width * BigInt(scaledTileSize.width) + "px"
     $selectedArea.style.height =
-      (selectedTilesInTileMap.height *
-        BigInt(
-          Math.round(app.scale.value * app.tileMap.value.tileSize.height * 100),
-        )) /
-        100n +
-      "px"
+      selectedTilesInTileMap.height * BigInt(scaledTileSize.height) + "px"
   }
 }
 
@@ -1175,52 +1165,35 @@ function convertCellPositionToCanvasPosition(
   cellPosition: CellPosition,
   scale = app.scale.value,
 ): Position {
+  const scaledTileSize = determineScaledTileSize(scale)
   return {
     x: Number(
-      (cellPosition.column *
-        BigInt(Math.round(scale * app.tileMap.value.tileSize.width * 100))) /
-        100n -
+      cellPosition.column * BigInt(scaledTileSize.width) -
         tileMapViewport.value.x,
     ),
     y: Number(
-      (cellPosition.row *
-        BigInt(Math.round(scale * app.tileMap.value.tileSize.height * 100))) /
-        100n -
+      cellPosition.row * BigInt(scaledTileSize.height) -
         tileMapViewport.value.y,
     ),
   }
 }
 
-function convertCellPositionToCanvasPosition2(
-  cellPosition: CellPosition,
-): Position {
+function determineScaledTileSize(scale: number): Size {
   return {
-    x: Number(
-      cellPosition.column *
-        BigInt(Math.round(app.tileMap.value.tileSize.width)) -
-        tileMapViewport.value.x,
-    ),
-    y: Number(
-      cellPosition.row * BigInt(Math.round(app.tileMap.value.tileSize.height)) -
-        tileMapViewport.value.y,
-    ),
+    width: Math.round(scale * app.tileMap.value.tileSize.width),
+    height: Math.round(scale * app.tileMap.value.tileSize.height),
   }
 }
 
 function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
   const tile = retrieveTile(position)
   const renderedAt: Position = convertCellPositionToCanvasPosition(position)
-  const scaledTileWidth = Math.ceil(
-    app.scale.value * app.tileMap.value.tileSize.width,
-  )
-  const scaledTileHeight = Math.ceil(
-    app.scale.value * app.tileMap.value.tileSize.height,
-  )
+  const scaledTileSize = determineScaledTileSize(app.scale.value)
   context.clearRect(
     renderedAt.x,
     renderedAt.y,
-    scaledTileWidth,
-    scaledTileHeight,
+    scaledTileSize.width,
+    scaledTileSize.height,
   )
   if (tile) {
     context.save()
@@ -1241,8 +1214,8 @@ function renderTile(position: CellPosition, replacements?: MultiLayerTile) {
             app.tileMap.value.tileSize.height,
             renderedAt.x,
             renderedAt.y,
-            scaledTileWidth,
-            scaledTileHeight,
+            scaledTileSize.width,
+            scaledTileSize.height,
           )
         }
       }
@@ -1501,14 +1474,11 @@ function renderTileMap() {
 
 function renderArea(area: CellFromToArea): void {
   const position = convertCellPositionToCanvasPosition(area.from)
+  const scaledTileSize = determineScaledTileSize(app.scale.value)
   const width =
-    Number(area.to.column - area.from.column + 1n) *
-    app.scale.value *
-    app.tileMap.value.tileSize.width
+    Number(area.to.column - area.from.column + 1n) * scaledTileSize.width
   const height =
-    Number(area.to.row - area.from.row + 1n) *
-    app.scale.value *
-    app.tileMap.value.tileSize.height
+    Number(area.to.row - area.from.row + 1n) * scaledTileSize.height
 
   context.clearRect(position.x, position.y, width, height)
 
@@ -1538,16 +1508,14 @@ function renderGridOnArea(area: CellArea): void {
     const veryZoomedOutLineWidth = 1
     context.fillStyle = "black"
 
-    const scaledTileHeight = app.scale.value * app.tileMap.value.tileSize.height
-    const scaledTileWidth = app.scale.value * app.tileMap.value.tileSize.width
-
+    const scaledTileSize = determineScaledTileSize(app.scale.value)
     const { x: fromX, y: fromY } = convertCellPositionToCanvasPosition(area)
-    const width = Number(area.width) * scaledTileWidth
-    const height = Number(area.height) * scaledTileHeight
+    const width = Number(area.width) * scaledTileSize.width
+    const height = Number(area.height) * scaledTileSize.height
     const toX = fromX + width - 1
     const toY = fromY + height - 1
-    for (let y = fromY; y <= toY + 1; y += scaledTileHeight) {
-      if (scaledTileHeight < 16) {
+    for (let y = fromY; y <= toY + 1; y += scaledTileSize.height) {
+      if (scaledTileSize.height < 16) {
         context.fillRect(fromX, y, width, veryZoomedOutLineWidth)
       } else {
         context.fillRect(
@@ -1558,8 +1526,8 @@ function renderGridOnArea(area: CellArea): void {
         )
       }
     }
-    for (let x = fromX; x <= toX + 1; x += scaledTileWidth) {
-      if (scaledTileWidth < 16) {
+    for (let x = fromX; x <= toX + 1; x += scaledTileSize.width) {
+      if (scaledTileSize.width < 16) {
         context.fillRect(x, fromY, veryZoomedOutLineWidth, height)
       } else {
         context.fillRect(
@@ -2089,10 +2057,14 @@ function previewPaste() {
 
 function removePreview(): void {
   if (app.previewTiles.value) {
-    renderTiles(app.previewTiles.value)
-    renderGridOnArea(app.previewTiles.value)
+    removePreviewTiles(app.previewTiles.value)
     app.previewTiles.next(null)
   }
+}
+
+function removePreviewTiles(area: CellArea): void {
+  renderTiles(area)
+  renderGridOnArea(area)
 }
 
 function doSomethingWithCopiedTiles(
@@ -2149,17 +2121,17 @@ function determineRowFromCoordinate(y: number): bigint {
     adjustToStepBigIntScaled(
       tileMapViewport.value.y + BigInt(Math.round(y)),
       scaledTileHeight,
-    ) / BigInt(Math.round(scaledTileHeight * 100))
+    ) / toBigInt(scaledTileHeight * 100)
   )
 }
 
 function determineColumnFromCoordinate(x: number): bigint {
-  const scaledTileWidth = app.scale.value * app.tileMap.value.tileSize.width
+  const scaledTileSize = determineScaledTileSize(app.scale.value)
   return (
     adjustToStepBigIntScaled(
       tileMapViewport.value.x + BigInt(Math.round(x)),
-      scaledTileWidth,
-    ) / BigInt(Math.round(scaledTileWidth * 100))
+      scaledTileSize.width,
+    ) / toBigInt(scaledTileSize.width * 100)
   )
 }
 
@@ -2373,35 +2345,31 @@ function adjustTileMapViewportSoThatTheMousePointerIsOnTheSameTilePositionAsBefo
   scaleAfterZoom: number,
 ): void {
   if (lastPointerPosition) {
-    const scaledTileWidthBeforeZoom =
-      scaleBeforeZoom * app.tileMap.value.tileSize.width
-    const scaledTileHeightBeforeZoom =
-      scaleBeforeZoom * app.tileMap.value.tileSize.height
+    const scaledTileSizeBeforeZoom = determineScaledTileSize(scaleBeforeZoom)
     const x =
       tileMapViewport.value.x + BigInt(Math.round(lastPointerPosition.x))
     const y =
       tileMapViewport.value.y + BigInt(Math.round(lastPointerPosition.y))
     const offsetBeforeZoom = {
       x: Number(
-        (x * 100n - adjustToStepBigIntScaled(x, scaledTileWidthBeforeZoom)) /
+        (x * 100n -
+          adjustToStepBigIntScaled(x, scaledTileSizeBeforeZoom.width)) /
           100n,
       ),
       y: Number(
-        (y * 100n - adjustToStepBigIntScaled(y, scaledTileHeightBeforeZoom)) /
+        (y * 100n -
+          adjustToStepBigIntScaled(y, scaledTileSizeBeforeZoom.height)) /
           100n,
       ),
     }
     const offsetBeforeZoomPercentual = {
-      x: offsetBeforeZoom.x / scaledTileWidthBeforeZoom,
-      y: offsetBeforeZoom.y / scaledTileHeightBeforeZoom,
+      x: offsetBeforeZoom.x / scaledTileSizeBeforeZoom.width,
+      y: offsetBeforeZoom.y / scaledTileSizeBeforeZoom.height,
     }
+    const scaledTileSizeAfterZoom = determineScaledTileSize(scaleAfterZoom)
     const offsetAfterZoom = {
-      x:
-        offsetBeforeZoomPercentual.x *
-        (scaleAfterZoom * app.tileMap.value.tileSize.width),
-      y:
-        offsetBeforeZoomPercentual.y *
-        (scaleAfterZoom * app.tileMap.value.tileSize.height),
+      x: offsetBeforeZoomPercentual.x * scaledTileSizeAfterZoom.width,
+      y: offsetBeforeZoomPercentual.y * scaledTileSizeAfterZoom.height,
     }
 
     const cellPosition = convertCanvasPositionToCellPosition(
@@ -2444,8 +2412,7 @@ app.previewTiles.subscribe(function (previewTiles) {
       (!previewTiles ||
         areCellAreasDifferent(previousPreviewTiles, previewTiles))
     ) {
-      renderTiles(previousPreviewTiles)
-      renderGridOnArea(previousPreviewTiles)
+      removePreviewTiles(previousPreviewTiles)
     }
   }
 

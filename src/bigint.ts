@@ -13,3 +13,7 @@ export function abs(value: bigint): bigint {
 export function halfOfCeiled(value: bigint): bigint {
   return (value + 1n) / 2n
 }
+
+export function toBigInt(value: number): bigint {
+  return BigInt(Math.round(value))
+}
