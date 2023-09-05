@@ -108,6 +108,13 @@ const $selectedArea = document.querySelector(".selected-area") as HTMLDivElement
 changeTool(Tool.Pen)
 let renderOnlyCurrentLevel: boolean = false
 
+const saveTileMap = debounce(async function () {
+  database.save(
+    "tileMap",
+    await readReadableStreamAsGzipBlob(createCompressedTileMapStream()),
+  )
+})
+
 let isGridShown: boolean = isGridShownSerialized
   ? JSON.parse(isGridShownSerialized)
   : true
@@ -268,6 +275,7 @@ app.tileMap.next(
 app.level.subscribe(function (level) {
   $level.value = String(level)
   localStorage.setItem("level", String(level))
+  saveTileMap()
   renderTileMap()
 })
 
@@ -1058,13 +1066,6 @@ function updateRenderOnlyCurrentLevelButton() {
     renderOnlyCurrentLevelButton.classList.remove("active")
   }
 }
-
-const saveTileMap = debounce(async function () {
-  database.save(
-    "tileMap",
-    await readReadableStreamAsGzipBlob(createCompressedTileMapStream()),
-  )
-})
 
 async function createNewTileMap(): Promise<void> {
   app.tileMap.next(await createTileMap())

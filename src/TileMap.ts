@@ -31,7 +31,9 @@ export class TileMap {
     )
     tileMap.tiles = rawObject.tiles.map((rawTileLayer) => {
       const tileLayer = new TileLayer()
-      tileLayer.tiles = rawTileLayer.tiles
+      if (rawTileLayer) {
+        tileLayer.tiles = rawTileLayer.tiles
+      }
       return tileLayer
     })
     return tileMap

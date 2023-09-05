@@ -43,6 +43,7 @@ export class App {
   }
 
   get currentLevelTileLayer() {
+    this.ensureTileLayer()
     return this.tileMap.value.tiles[this._level.value]
   }
 
