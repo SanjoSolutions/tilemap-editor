@@ -2238,7 +2238,11 @@ function retrieveSelectedTileSetID() {
 }
 
 $tileSetSelect.addEventListener("change", function () {
-  selectTileSet(retrieveSelectedTileSetID())
+  const selectedTileSetID = Number($tileSetSelect.value)
+  if (selectedTileSetID !== retrieveSelectedTileSetID()) {
+    selectTileSet(selectedTileSetID)
+    selectTileSetTiles(null)
+  }
 })
 
 {
