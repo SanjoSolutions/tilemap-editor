@@ -693,7 +693,6 @@ $tileMap.addEventListener("pointermove", function (event) {
       updateSelectedArea()
     }
   } else if (isInPasteMode) {
-    renderTileMap()
     previewPaste()
   } else if (app.selectedTileSetTiles.value) {
     if (app.activeTool.value === "pen") {
@@ -719,6 +718,7 @@ $tileMap.addEventListener("pointermove", function (event) {
       ) {
         if (previousPreviewTiles) {
           renderTiles(previousPreviewTiles)
+          renderGridOnArea(previousPreviewTiles)
         }
         renderPreviewTiles()
       }
@@ -1264,6 +1264,7 @@ function renderEmptyTile(position: CellPosition): void {
 function renderPreviewTiles() {
   if (previewTiles && app.selectedTileSetTiles.value) {
     renderSelectedTiles(previewTiles, app.selectedTileSetTiles.value)
+    renderGridOnArea(previewTiles)
   }
 }
 
@@ -1817,35 +1818,59 @@ function paste(): void {
   saveTileMap()
 }
 
-function previewPaste() {
-  doSomethingWithCopiedTiles(function (
-    position: CellPosition,
-    cutTile: MultiLayerTile | Tile | null,
-  ) {
-    if (hasBeenCopiedForOneLevel) {
-      const replacements: MultiLayerTile = []
-      replacements[app.level.value] = cutTile as Tile | null
-      renderTile(position, replacements)
-    } else {
-      renderTile(position, cutTile as MultiLayerTile)
-    }
-  })
+function restoreArea(area: CellArea): void {}
 
-  const numberOfRowsCut = copiedArea!.to.row - copiedArea!.from.row + 1n
-  const numberOfColumnsCut =
-    copiedArea!.to.column - copiedArea!.from.column + 1n
-  const fromRow =
-    determineRowFromCoordinate(lastPointerPosition!.y) -
-    (halfOfCeiled(numberOfRowsCut) - 1n)
-  const fromColumn =
-    determineColumnFromCoordinate(lastPointerPosition!.x) -
-    (halfOfCeiled(numberOfColumnsCut) - 1n)
-  renderGridOnArea({
-    row: fromRow,
-    column: fromColumn,
-    width: numberOfColumnsCut,
-    height: numberOfRowsCut,
-  })
+function previewPaste() {
+  const previousPreviewTiles = previewTiles
+  const selectedTileSetTiles = app.selectedTileSetTiles.value
+  if (selectedTileSetTiles && lastPointerPosition) {
+    const numberOfRowsCut = copiedArea!.to.row - copiedArea!.from.row + 1n
+    const numberOfColumnsCut =
+      copiedArea!.to.column - copiedArea!.from.column + 1n
+
+    const fromRow =
+      determineRowFromCoordinate(lastPointerPosition!.y) -
+      (halfOfCeiled(numberOfRowsCut) - 1n)
+    const fromColumn =
+      determineColumnFromCoordinate(lastPointerPosition!.x) -
+      (halfOfCeiled(numberOfColumnsCut) - 1n)
+
+    previewTiles = {
+      row: fromRow,
+      column: fromColumn,
+      width: numberOfColumnsCut,
+      height: numberOfRowsCut,
+    }
+    console.log(previewTiles)
+    if (
+      !previousPreviewTiles ||
+      areCellAreasDifferent(previousPreviewTiles, previewTiles)
+    ) {
+      if (previousPreviewTiles) {
+        renderTiles(previousPreviewTiles)
+        renderGridOnArea(previousPreviewTiles)
+      }
+      doSomethingWithCopiedTiles(function (
+        position: CellPosition,
+        cutTile: MultiLayerTile | Tile | null,
+      ) {
+        if (hasBeenCopiedForOneLevel) {
+          const replacements: MultiLayerTile = []
+          replacements[app.level.value] = cutTile as Tile | null
+          renderTile(position, replacements)
+        } else {
+          renderTile(position, cutTile as MultiLayerTile)
+        }
+      })
+
+      renderGridOnArea({
+        row: fromRow,
+        column: fromColumn,
+        width: numberOfColumnsCut,
+        height: numberOfRowsCut,
+      })
+    }
+  }
 }
 
 function doSomethingWithCopiedTiles(
