@@ -519,7 +519,7 @@ function isCellPositionVisibleOnCanvas(cellPosition: CellPosition): boolean {
 
 function retrieveNeighborsWithSetTile(
   cellPosition: CellPosition,
-  setTile: Tile,
+  setTile: Tile | null,
 ) {
   return retrieveNeighbors(cellPosition).filter((tile) =>
     isTileSetTo(tile, setTile),
@@ -547,11 +547,15 @@ function retrieveNeighbors(cellPosition: CellPosition): CellPosition[] {
   return neighbors
 }
 
-function isTileSetTo(cellPosition: CellPosition, setTile: Tile): boolean {
+function isTileSetTo(
+  cellPosition: CellPosition,
+  setTile: Tile | null,
+): boolean {
   const a = retrieveTile2(cellPosition)
   const b = a ? a[app.level.value] ?? null : null
-  return (
-    (!b && !setTile) || (b && setTile && b.x === setTile.x && b.y === setTile.y)
+  return Boolean(
+    (!b && !setTile) ||
+      (b && setTile && b.x === setTile.x && b.y === setTile.y),
   )
 }
 
@@ -645,8 +649,7 @@ function previewArea() {
           selectedTileSetTiles.y +
           Number(row % numberOfRowsSelectedInTileSet) *
             app.tileMap.value.tileSize.height,
-        width: app.tileMap.value.tileSize.width,
-        height: app.tileMap.value.tileSize.height,
+        tileSet: retrieveSelectedTileSetID(),
       }
       replacements[app.level.value] = tile
 
@@ -1817,8 +1820,6 @@ function paste(): void {
   renderTileMap()
   saveTileMap()
 }
-
-function restoreArea(area: CellArea): void {}
 
 function previewPaste() {
   const previousPreviewTiles = previewTiles

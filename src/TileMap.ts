@@ -44,7 +44,14 @@ export class TileMap {
     let hasSomethingChanged = false
     for (let level = 0; level < multiLayerTile.length; level++) {
       const tile = multiLayerTile[level]
-      const hasChanged = this.tiles[level].setTile({ row, column }, tile)
+      const tileLayer = this.tiles[level]
+      let hasChanged
+      if (tile) {
+        hasChanged = tileLayer.setTile({ row, column }, tile)
+      } else {
+        hasChanged = Boolean(tileLayer.retrieveTile({ row, column }))
+        tileLayer.removeTile({ row, column })
+      }
       hasSomethingChanged ||= hasChanged
     }
 

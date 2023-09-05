@@ -3,14 +3,16 @@ import type { CellAreaFromTo } from "./CellAreaFromTo.js"
 import type { CellPosition } from "./CellPosition.js"
 import type { Tile } from "./Tile.js"
 
+type TileLayerRow = Record<string, Tile>
+
 export class TileLayer {
-  tiles: Record<string, Record<string, Tile>> = {}
+  tiles: Record<string, TileLayerRow> = {}
 
   setTile({ row, column }: CellPosition, tile: Tile): boolean {
     const previousTile = this.retrieveTile({ row, column })
-    if (!previousTile || areTilesDifferent(previousTile, tile)) {
+    if (!previousTile || !tile || areTilesDifferent(previousTile, tile)) {
       const rowString = String(row)
-      let tileLayerRow: Record<string, Tile>
+      let tileLayerRow: TileLayerRow
       if (this.tiles[rowString]) {
         tileLayerRow = this.tiles[rowString]
       } else {
@@ -72,7 +74,7 @@ export class TileLayer {
     return copy
   }
 
-  *entries(): Generator<[CellPosition, Tile]> {
+  *entries(): Generator<[CellPosition, Tile | null]> {
     for (const row of Object.keys(this.tiles)) {
       const tileLayerRow = this.tiles[row]
       for (const column of Object.keys(tileLayerRow)) {

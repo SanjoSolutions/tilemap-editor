@@ -92,7 +92,6 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
       }
 
       .level {
@@ -106,6 +105,7 @@
         background-color: #f1f1f1;
         flex: 1 1 auto;
         position: relative;
+        overflow: hidden;
       }
 
       .tile-map {
@@ -372,7 +372,7 @@
         </div>
 
         <div class="tile-map-container">
-          <canvas class="tile-map" width="1024" height="1024"></canvas>
+          <canvas class="tile-map" width="300" height="200"></canvas>
           <div class="selected-area" style="display: none"></div>
         </div>
         <input class="level" type="number" value="0" title="Level" min="0" />

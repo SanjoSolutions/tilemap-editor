@@ -1,1 +1,3 @@
-export type MultiLayerTile = Tile[]
+import type { Tile } from "./Tile.js"
+
+export type MultiLayerTile = (Tile | null)[]
