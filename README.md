@@ -22,6 +22,7 @@
 * Keybindings
 * Toggle grid
 * Toggle: render only current level
+* Zooming
 
 ## Keyboard shortcuts
 
