@@ -2,6 +2,7 @@ import { BehaviorSubject } from "rxjs"
 import type { Area } from "./Area.js"
 import { calculateNumberOfColumns } from "./calculateNumberOfColumns.js"
 import { calculateNumberOfRows } from "./calculateNumberOfRows.js"
+import type { CellArea } from "./CellArea.js"
 import type { CellPosition } from "./CellPosition.js"
 import { findIndexOfClosestNumber } from "./findIndexOfClosestNumber.js"
 import type { Level } from "./Level.js"
@@ -25,7 +26,8 @@ export class App {
   isDragModeEnabled = new BehaviorSubject<boolean>(false)
   selectedTileSet = new BehaviorSubject<number>(0)
   backups: TileMap[] = []
-  scale: BehaviorSubject<number> = new BehaviorSubject<number>(DEFAULT_SCALE)
+  scale = new BehaviorSubject<number>(DEFAULT_SCALE)
+  previewTiles = new BehaviorSubject<CellArea | null>(null)
 
   set level(level: Level) {
     if (level >= 0) {

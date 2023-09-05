@@ -251,8 +251,6 @@ function adjustToStepBigIntScaled(value: bigint, step: number): bigint {
   return a * multipliedStep
 }
 
-let previewTiles: CellArea | null = null
-
 const DEFAULT_TILE_WIDTH = 32
 const DEFAULT_TILE_HEIGHT = 32
 await database.open()
@@ -602,49 +600,34 @@ function updateSelectedArea() {
 }
 
 function preview9SliceMade() {
-  const selectedTileSetTiles = app.selectedTileSetTiles.value
-  const currentSelectedTilesInTileMap = selectedTilesInTileMap
-  if (selectedTileSetTiles && currentSelectedTilesInTileMap) {
-    const previousPreviewTiles = previewTiles
-    previewTiles = currentSelectedTilesInTileMap
-    if (
-      !previousPreviewTiles ||
-      areCellAreasDifferent(previousPreviewTiles, previewTiles)
-    ) {
-      if (previousPreviewTiles) {
-        renderTiles(previousPreviewTiles)
-        renderGridOnArea(previousPreviewTiles)
-      }
-
-      do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
-        const replacements = []
-        replacements[app.level.value] = tile
-        renderTile(
-          {
-            row: row + currentSelectedTilesInTileMap.row,
-            column: column + currentSelectedTilesInTileMap.column,
-          },
-          replacements,
-        )
-      })
-    }
-  }
+  renderCurrentPreview(function ({ currentlySelectedTilesInTileMap }) {
+    do9SliceMethodWithSelectedTiles(function ({ row, column }, tile) {
+      const replacements = []
+      replacements[app.level.value] = tile
+      renderTile(
+        {
+          row: row + currentlySelectedTilesInTileMap.row,
+          column: column + currentlySelectedTilesInTileMap.column,
+        },
+        replacements,
+      )
+    })
+  })
 }
 
 function previewArea() {
-  const selectedTileSetTiles = app.selectedTileSetTiles.value
-  const currentlySelectedTilesInTileMap = selectedTilesInTileMap
-  if (selectedTileSetTiles && currentlySelectedTilesInTileMap) {
-    renderTileMap()
-
-    const numberOfRowsSelectedInTileSet = BigInt(
-      selectedTileSetTiles.height / app.tileMap.value.tileSize.height,
-    )
-    const numberOfColumnsSelectedInTileSet = BigInt(
-      selectedTileSetTiles.width / app.tileMap.value.tileSize.width,
-    )
+  renderCurrentPreview(function ({
+    currentlySelectedTilesInTileMap,
+    selectedTileSetTiles,
+  }) {
     doSomethingWithSelectedTilesInTileMap(function ({ row, column }) {
       const replacements = []
+      const numberOfRowsSelectedInTileSet = BigInt(
+        selectedTileSetTiles.height / app.tileMap.value.tileSize.height,
+      )
+      const numberOfColumnsSelectedInTileSet = BigInt(
+        selectedTileSetTiles.width / app.tileMap.value.tileSize.width,
+      )
       const tile = {
         x:
           selectedTileSetTiles.x +
@@ -666,6 +649,32 @@ function previewArea() {
         replacements,
       )
     })
+  })
+}
+
+function renderCurrentPreview(
+  fn: (things: {
+    currentlySelectedTilesInTileMap: CellArea
+    selectedTileSetTiles: Area
+  }) => void,
+): void {
+  const selectedTileSetTiles = app.selectedTileSetTiles.value
+  const currentlySelectedTilesInTileMap = selectedTilesInTileMap
+  if (selectedTileSetTiles && currentlySelectedTilesInTileMap) {
+    const previousPreviewTiles = app.previewTiles.value
+    app.previewTiles.next(currentlySelectedTilesInTileMap)
+    if (
+      !previousPreviewTiles ||
+      areCellAreasDifferent(
+        previousPreviewTiles,
+        currentlySelectedTilesInTileMap,
+      )
+    ) {
+      fn({
+        currentlySelectedTilesInTileMap,
+        selectedTileSetTiles,
+      })
+    }
   }
 }
 
@@ -704,8 +713,8 @@ $tileMap.addEventListener("pointermove", function (event) {
     previewPaste()
   } else if (app.selectedTileSetTiles.value) {
     if (app.activeTool.value === "pen") {
-      const previousPreviewTiles = previewTiles
-      previewTiles = {
+      const previousPreviewTiles = app.previewTiles.value
+      const previewTiles = {
         ...convertEventToCellPosition(event),
         width: BigInt(
           Math.ceil(
@@ -720,23 +729,21 @@ $tileMap.addEventListener("pointermove", function (event) {
           ),
         ),
       }
+      app.previewTiles.next(previewTiles)
       if (
         !previousPreviewTiles ||
         areCellAreasDifferent(previousPreviewTiles, previewTiles)
       ) {
-        if (previousPreviewTiles) {
-          renderTiles(previousPreviewTiles)
-          renderGridOnArea(previousPreviewTiles)
-        }
         renderPreviewTiles()
       }
     } else if (app.activeTool.value === "area") {
-      const previousPreviewTiles = previewTiles
-      previewTiles = {
+      const previousPreviewTiles = app.previewTiles.value
+      const previewTiles = {
         ...convertEventToCellPosition(event),
         width: 1n,
         height: 1n,
       }
+      app.previewTiles.next(previewTiles)
       if (
         !previousPreviewTiles ||
         areCellAreasDifferent(previousPreviewTiles, previewTiles)
@@ -778,7 +785,7 @@ function seemsThat9SliceIsSelected(): boolean {
 }
 
 $tileMap.addEventListener("mouseleave", function () {
-  previewTiles = null
+  app.previewTiles.next(null)
   renderTileMap()
 })
 
@@ -1273,9 +1280,9 @@ function renderEmptyTile(position: CellPosition): void {
 }
 
 function renderPreviewTiles() {
-  if (previewTiles && app.selectedTileSetTiles.value) {
-    renderSelectedTiles(previewTiles, app.selectedTileSetTiles.value)
-    renderGridOnArea(previewTiles)
+  if (app.previewTiles.value && app.selectedTileSetTiles.value) {
+    renderSelectedTiles(app.previewTiles.value, app.selectedTileSetTiles.value)
+    renderGridOnArea(app.previewTiles.value)
   }
 }
 
@@ -1998,7 +2005,7 @@ function paste(): void {
 }
 
 function previewPaste() {
-  const previousPreviewTiles = previewTiles
+  const previousPreviewTiles = app.previewTiles.value
   const selectedTileSetTiles = app.selectedTileSetTiles.value
   if (selectedTileSetTiles && lastPointerPosition) {
     const numberOfRowsCut = copiedArea!.to.row - copiedArea!.from.row + 1n
@@ -2012,20 +2019,17 @@ function previewPaste() {
       determineColumnFromCoordinate(lastPointerPosition!.x) -
       (halfOfCeiled(numberOfColumnsCut) - 1n)
 
-    previewTiles = {
+    const previewTiles = {
       row: fromRow,
       column: fromColumn,
       width: numberOfColumnsCut,
       height: numberOfRowsCut,
     }
+    app.previewTiles.next(previewTiles)
     if (
       !previousPreviewTiles ||
       areCellAreasDifferent(previousPreviewTiles, previewTiles)
     ) {
-      if (previousPreviewTiles) {
-        renderTiles(previousPreviewTiles)
-        renderGridOnArea(previousPreviewTiles)
-      }
       doSomethingWithCopiedTiles(function (
         position: CellPosition,
         cutTile: MultiLayerTile | Tile | null,
@@ -2050,10 +2054,10 @@ function previewPaste() {
 }
 
 function removePreview(): void {
-  if (previewTiles) {
-    renderTiles(previewTiles)
-    renderGridOnArea(previewTiles)
-    previewTiles = null
+  if (app.previewTiles.value) {
+    renderTiles(app.previewTiles.value)
+    renderGridOnArea(app.previewTiles.value)
+    app.previewTiles.next(null)
   }
 }
 
@@ -2109,7 +2113,7 @@ function determineRowFromCoordinate(y: number): bigint {
   const scaledTileHeight = app.scale.value * app.tileMap.value.tileSize.height
   return (
     adjustToStepBigIntScaled(
-      tileMapViewport.value.y + BigInt(y),
+      tileMapViewport.value.y + BigInt(Math.round(y)),
       scaledTileHeight,
     ) / BigInt(Math.round(scaledTileHeight * 100))
   )
@@ -2119,7 +2123,7 @@ function determineColumnFromCoordinate(x: number): bigint {
   const scaledTileWidth = app.scale.value * app.tileMap.value.tileSize.width
   return (
     adjustToStepBigIntScaled(
-      tileMapViewport.value.x + BigInt(x),
+      tileMapViewport.value.x + BigInt(Math.round(x)),
       scaledTileWidth,
     ) / BigInt(Math.round(scaledTileWidth * 100))
   )
@@ -2392,3 +2396,19 @@ function adjustTileMapViewportSoThatTheMousePointerIsOnTheSameTilePositionAsBefo
     })
   }
 }
+
+let previousPreviewTiles: CellArea | null = null
+app.previewTiles.subscribe(function (previewTiles) {
+  if (previousPreviewTiles) {
+    if (
+      previousPreviewTiles &&
+      (!previewTiles ||
+        areCellAreasDifferent(previousPreviewTiles, previewTiles))
+    ) {
+      renderTiles(previousPreviewTiles)
+      renderGridOnArea(previousPreviewTiles)
+    }
+  }
+
+  previousPreviewTiles = previewTiles
+})
