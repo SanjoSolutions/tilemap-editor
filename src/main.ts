@@ -1,6 +1,7 @@
 import * as bootstrap from "bootstrap"
 import * as path from "node:path"
 import { BehaviorSubject } from "rxjs"
+import { addPositions } from "./addPositions.js"
 import { App } from "./App.js"
 import type { Area } from "./Area.js"
 import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
@@ -378,8 +379,10 @@ function convertEventToCellPosition(event: PointerEvent): CellPosition {
   return convertCanvasPositionToCellPosition(convertEventToPosition(event))
 }
 
-function convertCanvasPositionToCellPosition(position: Position): CellPosition {
-  const scale = app.scale.value
+function convertCanvasPositionToCellPosition(
+  position: Position,
+  scale: number = app.scale.value,
+): CellPosition {
   const scaledTileHeight = scale * app.tileMap.value.tileSize.height
   const scaledTileWidth = scale * app.tileMap.value.tileSize.width
 
@@ -1125,21 +1128,18 @@ function renderTiles(area: CellArea): void {
 
 function convertCellPositionToCanvasPosition(
   cellPosition: CellPosition,
+  scale = app.scale.value,
 ): Position {
   return {
     x: Number(
       (cellPosition.column *
-        BigInt(
-          Math.round(app.scale.value * app.tileMap.value.tileSize.width * 100),
-        )) /
+        BigInt(Math.round(scale * app.tileMap.value.tileSize.width * 100))) /
         100n -
         tileMapViewport.value.x,
     ),
     y: Number(
       (cellPosition.row *
-        BigInt(
-          Math.round(app.scale.value * app.tileMap.value.tileSize.height * 100),
-        )) /
+        BigInt(Math.round(scale * app.tileMap.value.tileSize.height * 100))) /
         100n -
         tileMapViewport.value.y,
     ),
@@ -1283,7 +1283,6 @@ tileMapViewport.subscribe(function (tileMapViewport: PositionBigInt) {
   if (previousTileMapViewport) {
     const offsetX = Number(previousTileMapViewport.x - tileMapViewport.x)
     const offsetY = Number(previousTileMapViewport.y - tileMapViewport.y)
-    console.log(offsetX, offsetY)
     context.drawImage($tileMap, offsetX, offsetY)
     if (offsetX > 0) {
       renderArea(
@@ -2284,6 +2283,83 @@ function removeTileSet(id: number): void {
   })
 }
 
-app.scale.subscribe(function () {
+let previousScale: number | null = null
+
+app.scale.subscribe(function (scale) {
+  if (previousScale) {
+    adjustTileMapViewportSoThatTheMousePointerIsOnTheSameTilePositionAsBeforeZooming(
+      previousScale,
+      scale,
+    )
+  }
   renderTileMap()
+  previousScale = scale
 })
+
+function adjustTileMapViewportSoThatTheMousePointerIsOnTheSameTilePositionAsBeforeZooming(
+  scaleBeforeZoom: number,
+  scaleAfterZoom: number,
+): void {
+  if (lastPointerPosition) {
+    const scaledTileWidthBeforeZoom =
+      scaleBeforeZoom * app.tileMap.value.tileSize.width
+    const scaledTileHeightBeforeZoom =
+      scaleBeforeZoom * app.tileMap.value.tileSize.height
+    const x =
+      tileMapViewport.value.x + BigInt(Math.round(lastPointerPosition.x))
+    const y =
+      tileMapViewport.value.y + BigInt(Math.round(lastPointerPosition.y))
+    const offsetBeforeZoom = {
+      x: Number(
+        (x * 100n - adjustToStepBigIntScaled(x, scaledTileWidthBeforeZoom)) /
+          100n,
+      ),
+      y: Number(
+        (y * 100n - adjustToStepBigIntScaled(y, scaledTileHeightBeforeZoom)) /
+          100n,
+      ),
+    }
+    const offsetBeforeZoomPercentual = {
+      x: offsetBeforeZoom.x / scaledTileWidthBeforeZoom,
+      y: offsetBeforeZoom.y / scaledTileHeightBeforeZoom,
+    }
+    const offsetAfterZoom = {
+      x:
+        offsetBeforeZoomPercentual.x *
+        (scaleAfterZoom * app.tileMap.value.tileSize.width),
+      y:
+        offsetBeforeZoomPercentual.y *
+        (scaleAfterZoom * app.tileMap.value.tileSize.height),
+    }
+
+    const cellPosition = convertCanvasPositionToCellPosition(
+      lastPointerPosition,
+      scaleBeforeZoom,
+    )
+    const cellCanvasPositionBeforeZoom = addPositions(
+      convertCellPositionToCanvasPosition(cellPosition, scaleBeforeZoom),
+      offsetBeforeZoom,
+    )
+    const cellCanvasPositionAfterZoom = addPositions(
+      convertCellPositionToCanvasPosition(cellPosition, scaleAfterZoom),
+      offsetAfterZoom,
+    )
+
+    tileMapViewport.next({
+      x:
+        tileMapViewport.value.x +
+        BigInt(
+          Math.round(
+            cellCanvasPositionAfterZoom.x - cellCanvasPositionBeforeZoom.x,
+          ),
+        ),
+      y:
+        tileMapViewport.value.y +
+        BigInt(
+          Math.round(
+            cellCanvasPositionAfterZoom.y - cellCanvasPositionBeforeZoom.y,
+          ),
+        ),
+    })
+  }
+}
