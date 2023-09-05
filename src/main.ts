@@ -1283,27 +1283,35 @@ tileMapViewport.subscribe(function (tileMapViewport: PositionBigInt) {
   if (previousTileMapViewport) {
     const offsetX = Number(previousTileMapViewport.x - tileMapViewport.x)
     const offsetY = Number(previousTileMapViewport.y - tileMapViewport.y)
-    const width = $tileMap.width - Math.abs(offsetX)
-    const height = $tileMap.height - Math.abs(offsetY)
-    const backup = new OffscreenCanvas(width, height)
-    const backupContext = backup.getContext("2d")!
-    backupContext.drawImage(
-      $tileMap,
-      offsetX < 0 ? Math.abs(offsetX) : 0,
-      offsetY < 0 ? Math.abs(offsetY) : 0,
-      width,
-      height,
-      0,
-      0,
-      width,
-      height,
-    )
+    const width = Math.max($tileMap.width - Math.abs(offsetX), 0)
+    const height = Math.max($tileMap.height - Math.abs(offsetY), 0)
+    let backup
+    if (width > 0 && height > 0) {
+      backup = new OffscreenCanvas(width, height)
+      const backupContext = backup.getContext("2d")!
+      backupContext.drawImage(
+        $tileMap,
+        offsetX < 0 ? Math.abs(offsetX) : 0,
+        offsetY < 0 ? Math.abs(offsetY) : 0,
+        width,
+        height,
+        0,
+        0,
+        width,
+        height,
+      )
+    }
+
     context.clearRect(0, 0, $tileMap.width, $tileMap.height)
-    context.drawImage(
-      backup,
-      offsetX < 0 ? 0 : offsetX > 0 ? offsetX : 0,
-      offsetY < 0 ? 0 : offsetY > 0 ? offsetY : 0,
-    )
+
+    if (width > 0 && height > 0) {
+      context.drawImage(
+        backup!,
+        offsetX < 0 ? 0 : offsetX > 0 ? offsetX : 0,
+        offsetY < 0 ? 0 : offsetY > 0 ? offsetY : 0,
+      )
+    }
+
     if (offsetX > 0) {
       renderArea(
         convertCanvasFromToAreaToCellFromToArea({
