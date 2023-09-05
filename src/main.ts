@@ -11,6 +11,7 @@ import { areCellAreasDifferent } from "./areCellAreasDifferent.js"
 import { abs, halfOfCeiled, min } from "./bigint.js"
 import type { CellArea } from "./CellArea.js"
 import type { CellAreaFromTo } from "./CellAreaFromTo.js"
+import type { CellFromToArea } from "./CellFromToArea.js"
 import type { CellPosition } from "./CellPosition.js"
 import { createCellPositionKey } from "./CellPosition.js"
 import type { FromToArea } from "./FromToArea.js"
@@ -1277,7 +1278,134 @@ function renderPreviewTiles() {
   }
 }
 
-tileMapViewport.subscribe(renderTileMap)
+let previousTileMapViewport: PositionBigInt | null = null
+tileMapViewport.subscribe(function (tileMapViewport: PositionBigInt) {
+  if (previousTileMapViewport) {
+    const offsetX = Number(previousTileMapViewport.x - tileMapViewport.x)
+    const offsetY = Number(previousTileMapViewport.y - tileMapViewport.y)
+    console.log(offsetX, offsetY)
+    context.drawImage($tileMap, offsetX, offsetY)
+    if (offsetX > 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: 0,
+            y: offsetY,
+          },
+          to: {
+            x: offsetX,
+            y: $tileMap.height,
+          },
+        }),
+      )
+    } else if (offsetX < 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: $tileMap.width + offsetX,
+            y: offsetY,
+          },
+          to: {
+            x: $tileMap.width,
+            y: $tileMap.height,
+          },
+        }),
+      )
+    }
+    if (offsetY > 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: offsetX,
+            y: 0,
+          },
+          to: {
+            x: $tileMap.width,
+            y: offsetY,
+          },
+        }),
+      )
+    } else if (offsetY < 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: offsetX,
+            y: $tileMap.height + offsetY,
+          },
+          to: {
+            x: $tileMap.width,
+            y: $tileMap.height,
+          },
+        }),
+      )
+    }
+
+    if (offsetX > 0 && offsetY > 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: 0,
+            y: 0,
+          },
+          to: {
+            x: offsetX,
+            y: offsetY,
+          },
+        }),
+      )
+    } else if (offsetX < 0 && offsetY < 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: $tileMap.width + offsetX,
+            y: $tileMap.height + offsetY,
+          },
+          to: {
+            x: $tileMap.width,
+            y: $tileMap.height,
+          },
+        }),
+      )
+    } else if (offsetX < 0 && offsetY > 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: $tileMap.width + offsetX,
+            y: 0,
+          },
+          to: {
+            x: $tileMap.width,
+            y: offsetY,
+          },
+        }),
+      )
+    } else if (offsetX > 0 && offsetY < 0) {
+      renderArea(
+        convertCanvasFromToAreaToCellFromToArea({
+          from: {
+            x: 0,
+            y: $tileMap.height + offsetY,
+          },
+          to: {
+            x: offsetX,
+            y: $tileMap.height,
+          },
+        }),
+      )
+    }
+  }
+  previousTileMapViewport = tileMapViewport
+})
+
+function convertCanvasFromToAreaToCellFromToArea(
+  canvasFromToArea: FromToArea,
+): CellFromToArea {
+  return {
+    from: convertCanvasPositionToCellPosition(canvasFromToArea.from),
+    to: convertCanvasPositionToCellPosition(canvasFromToArea.to),
+  }
+}
+
 tileMapViewport.subscribe(updateSelectedArea)
 app.scale.subscribe(updateSelectedArea)
 
@@ -1299,7 +1427,21 @@ function renderTileMap() {
     }),
   }
 
-  context.clearRect(0, 0, $tileMap.width, $tileMap.height)
+  renderArea(area)
+}
+
+function renderArea(area: CellFromToArea): void {
+  const position = convertCellPositionToCanvasPosition(area.from)
+  const width =
+    Number(area.to.column - area.from.column + 1n) *
+    app.scale.value *
+    app.tileMap.value.tileSize.width
+  const height =
+    Number(area.to.row - area.from.row + 1n) *
+    app.scale.value *
+    app.tileMap.value.tileSize.height
+
+  context.clearRect(position.x, position.y, width, height)
 
   for (let row = area.from.row; row <= area.to.row; row++) {
     for (let column = area.from.column; column <= area.to.column; column++) {
@@ -1307,7 +1449,7 @@ function renderTileMap() {
     }
   }
 
-  renderGrid()
+  renderGridOnArea(convertFromToAreaToCellArea(area))
 }
 
 function renderGrid() {
@@ -1603,8 +1745,9 @@ window.addEventListener("keydown", function (event) {
       }
     } else if (isNoModifierKeyPressed(event) && event.code === "Space") {
       event.preventDefault()
-      app.isDragModeEnabled.next(true)
-      renderTileMap()
+      if (!app.isDragModeEnabled.value) {
+        app.isDragModeEnabled.next(true)
+      }
     } else if (
       isNoModifierKeyPressed(event) &&
       (event.code === "Backspace" || event.code === "Delete")
@@ -1643,6 +1786,7 @@ $tileMap.addEventListener("wheel", function (event) {
 app.isDragModeEnabled.subscribe((isDragModeEnabled) => {
   if (isDragModeEnabled) {
     $tileMap.classList.add("tile-map--dragging")
+    removePreview()
   } else {
     $tileMap.classList.remove("tile-map--dragging")
   }
@@ -1699,7 +1843,7 @@ function undo() {
 }
 
 let copiedTiles: TileLayer | TileLayer[] | null = null
-let copiedArea: FromToArea | null = null
+let copiedArea: CellFromToArea | null = null
 let hasBeenCopiedForOneLevel: boolean | null = null
 let isInPasteMode: boolean = false
 
@@ -1751,7 +1895,7 @@ function cut() {
   }
 }
 
-function convertFromToAreaToCellArea(fromToArea: FromToArea): CellArea {
+function convertFromToAreaToCellArea(fromToArea: CellFromToArea): CellArea {
   return {
     row: fromToArea.from.row,
     column: fromToArea.from.column,
@@ -1874,6 +2018,14 @@ function previewPaste() {
         height: numberOfRowsCut,
       })
     }
+  }
+}
+
+function removePreview(): void {
+  if (previewTiles) {
+    renderTiles(previewTiles)
+    renderGridOnArea(previewTiles)
+    previewTiles = null
   }
 }
 

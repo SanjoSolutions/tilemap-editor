@@ -1,6 +1,6 @@
-import type { CellPosition } from "./CellPosition.js"
+import type { Position } from "./Position.js"
 
 export interface FromToArea {
-  from: CellPosition
-  to: CellPosition
+  from: Position
+  to: Position
 }
