@@ -1,4 +1,5 @@
 {
+  "name": "@sanjo/tilemap-editor",
   "type": "module",
   "scripts": {
     "development": "node development.js",
@@ -6,6 +7,9 @@
     "test": "tsc --noEmit && jest && playwright test",
     "serve": "python3 -m http.server 8000",
     "deploy": "npm run build && firebase deploy --only hosting"
+  },
+  "exports": {
+    "./*": "./src/*"
   },
   "dependencies": {
     "bootstrap": "^5.3.1",
