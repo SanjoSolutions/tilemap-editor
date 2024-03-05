@@ -138,18 +138,6 @@ const createWindow = () => {
         )
       },
     },
-    ...(isMac
-      ? []
-      : [
-          {
-            role: "help",
-            submenu: [
-              {
-                role: "about",
-              },
-            ],
-          },
-        ]),
   ])
   Menu.setApplicationMenu(menu)
 
