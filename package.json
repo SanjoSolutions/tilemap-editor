@@ -1,32 +1,23 @@
 {
-  "name": "@sanjo/game-maker",
-  "productName": "Game Maker",
-  "version": "0.0.0",
-  "main": ".vite/build/main.js",
+  "name": "@sanjo/tilemap-editor",
+  "type": "module",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "development": "node development.js",
+    "build": "node build.js",
+    "test": "tsc --noEmit && jest && playwright test",
+    "serve": "python3 -m http.server 8000",
+    "deploy": "npm run build && firebase deploy --only hosting"
+  },
+  "exports": {
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.1",
+    "firebase": "^10.3.1",
+    "lodash-es": "^4.17.21",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.3.0",
-    "@electron-forge/maker-deb": "^7.3.0",
-    "@electron-forge/maker-rpm": "^7.3.0",
-    "@electron-forge/maker-squirrel": "^7.3.0",
-    "@electron-forge/maker-zip": "^7.3.0",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
-    "@electron-forge/plugin-fuses": "^7.3.0",
-    "@electron-forge/plugin-vite": "^7.3.0",
-    "@electron/fuses": "^1.7.0",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
-    "electron": "29.1.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "ts-node": "^10.9.2",
-    "vite": "^5.1.4",
     "@babel/core": "^7.22.11",
     "@babel/preset-env": "^7.22.14",
     "@babel/preset-typescript": "^7.22.11",
@@ -35,23 +26,12 @@
     "@types/jest": "^29.5.4",
     "@types/lodash-es": "^4.17.9",
     "babel-jest": "^29.6.4",
+    "esbuild": "^0.19.2",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
     "jest": "^29.6.4",
     "jest-environment-jsdom": "^29.6.4",
     "prettier": "^3.0.3",
     "ts-jest-resolver": "^2.0.1",
     "typescript": "^5.2.2"
-  },
-  "keywords": [],
-  "author": {
-    "name": "Jonas Aschenbrenner",
-    "email": "jonas.aschenbrenner@gmail.com"
-  },
-  "license": "MIT",
-  "dependencies": {
-    "bootstrap": "^5.3.1",
-    "firebase": "^10.3.1",
-    "lodash-es": "^4.17.21",
-    "rxjs": "^7.8.1",
-    "electron-squirrel-startup": "^1.0.0"
   }
 }
