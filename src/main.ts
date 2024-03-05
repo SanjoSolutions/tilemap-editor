@@ -58,7 +58,7 @@ const createWindow = () => {
           label: "New game",
           accelerator: "CommandOrControl+N",
           click() {
-            mainWindow.webContents.send("new-game")
+            newGame()
           },
         },
         isMac ? { role: "close" } : { role: "quit" },
@@ -71,7 +71,7 @@ const createWindow = () => {
           label: "Undo",
           accelerator: "CommandOrControl+Z",
           click() {
-            mainWindow.webContents.send("undo")
+            undo()
           },
         },
         // { role: "redo" }, // TODO: Implement
@@ -81,7 +81,7 @@ const createWindow = () => {
           accelerator: "CommandOrControl+X",
           registerAccelerator: false,
           click() {
-            mainWindow.webContents.send("cut")
+            cut()
           },
         },
         {
@@ -89,7 +89,7 @@ const createWindow = () => {
           accelerator: "CommandOrControl+C",
           registerAccelerator: false,
           click() {
-            mainWindow.webContents.send("copy")
+            copy()
           },
         },
         {
@@ -97,7 +97,7 @@ const createWindow = () => {
           accelerator: "CommandOrControl+V",
           registerAccelerator: false,
           click() {
-            mainWindow.webContents.send("paste")
+            paste()
           },
         },
         // { role: "delete" }, // TODO: Implement
@@ -152,6 +152,29 @@ const createWindow = () => {
         ]),
   ])
   Menu.setApplicationMenu(menu)
+
+  function newGame() {
+    mainWindow.webContents.send("new-game")
+  }
+
+  function undo() {
+    mainWindow.webContents.send("undo")
+  }
+
+  function cut() {
+    mainWindow.webContents.send("cut")
+  }
+
+  function copy() {
+    mainWindow.webContents.send("copy")
+  }
+
+  function paste() {
+    mainWindow.webContents.send("paste")
+  }
+
+  globalShortcut.register("CommandOrControl+N", newGame)
+  globalShortcut.register("CommandOrControl+Z", undo)
 }
 
 // This method will be called when Electron has finished
