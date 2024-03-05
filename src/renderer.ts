@@ -1130,7 +1130,10 @@ async function createNewTileMap(): Promise<void> {
   saveTileMap()
 }
 
-window.electronAPI.onNewGame(createNewTileMap)
+window.electronAPI.onNewGame(function () {
+  console.log("test")
+  createNewTileMap
+})
 
 async function createTileMap() {
   const tileMap = new TileMap()
