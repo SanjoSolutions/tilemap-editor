@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, Menu, shell } from "electron"
+import { app, BrowserWindow, Menu, shell } from "electron"
 import path from "path"
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -55,11 +55,10 @@ const createWindow = () => {
       label: "File",
       submenu: [
         {
-          label: "New game",
-          accelerator: "CommandOrControl+N",
+          label: `New game (${isMac ? "Cmd + N" : "Ctrl + N"})`,
           click() {
-            newGame()
-          },
+            mainWindow.webContents.send('new-game')
+          }
         },
         isMac ? { role: "close" } : { role: "quit" },
       ],
@@ -67,102 +66,50 @@ const createWindow = () => {
     {
       label: "Edit",
       submenu: [
-        {
-          label: "Undo",
-          accelerator: "CommandOrControl+Z",
-          click() {
-            undo()
-          },
-        },
+        { role: "undo" },
         // { role: "redo" }, // TODO: Implement
         { type: "separator" },
-        {
-          label: "Cut",
-          accelerator: "CommandOrControl+X",
-          registerAccelerator: false,
-          click() {
-            cut()
-          },
-        },
-        {
-          label: "Copy",
-          accelerator: "CommandOrControl+C",
-          registerAccelerator: false,
-          click() {
-            copy()
-          },
-        },
-        {
-          label: "Paste",
-          accelerator: "CommandOrControl+V",
-          registerAccelerator: false,
-          click() {
-            paste()
-          },
-        },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
         // { role: "delete" }, // TODO: Implement
       ],
     },
-    ...(MAIN_WINDOW_VITE_DEV_SERVER_URL
-      ? [
-          {
-            label: "View",
-            submenu: [
-              { role: "reload" },
-              { role: "forceReload" },
-              { role: "toggleDevTools" },
-              { type: "separator" },
-              { role: "resetZoom" },
-              { role: "zoomIn" },
-              { role: "zoomOut" },
-              { type: "separator" },
-              { role: "togglefullscreen" },
-            ],
-          },
-        ]
-      : []),
+    ...(
+      MAIN_WINDOW_VITE_DEV_SERVER_URL
+        ? [
+            {
+              label: "View",
+              submenu: [
+                { role: "reload" },
+                { role: "forceReload" },
+                { role: "toggleDevTools" },
+                { type: "separator" },
+                { role: "resetZoom" },
+                { role: "zoomIn" },
+                { role: "zoomOut" },
+                { type: "separator" },
+                { role: "togglefullscreen" },
+              ],
+            },
+          ]
+        : [],
+        ),
     { role: "windowMenu" },
     {
-      label: "Give feedback",
+      label: 'Give feedback',
       async click() {
-        await shell.openExternal(
-          "https://github.com/SanjoSolutions/tilemap-editor/issues/new",
-        )
-      },
+        await shell.openExternal('https://github.com/SanjoSolutions/tilemap-editor/issues/new')
+      }
     },
     {
-      label: "Donate",
+      label: 'Donate',
       async click() {
-        await shell.openExternal(
-          "https://www.paypal.com/donate/?hosted_button_id=H7Q46GUS9N3NC",
-        )
-      },
-    },
+        await shell.openExternal('https://www.paypal.com/donate/?hosted_button_id=H7Q46GUS9N3NC')
+      }
+    }
   ])
   Menu.setApplicationMenu(menu)
-
-  function newGame() {
-    mainWindow.webContents.send("new-game")
-  }
-
-  function undo() {
-    mainWindow.webContents.send("undo")
-  }
-
-  function cut() {
-    mainWindow.webContents.send("cut")
-  }
-
-  function copy() {
-    mainWindow.webContents.send("copy")
-  }
-
-  function paste() {
-    mainWindow.webContents.send("paste")
-  }
-
-  globalShortcut.register("CommandOrControl+N", newGame)
-  globalShortcut.register("CommandOrControl+Z", undo)
 }
 
 // This method will be called when Electron has finished

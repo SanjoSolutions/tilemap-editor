@@ -5,6 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Game Maker</title>
     <link href="bootstrap.min.css" rel="stylesheet" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        height: 100vh;
+      }
+
+      .app-navbar {
+        border-bottom: 1px solid gainsboro;
+      }
+
+      .menu-icon-bar {
+        background-color: rgb(var(--bs-tertiary-bg-rgb));
+        border-radius: 0 !important;
+        border-bottom: 1px solid gainsboro;
+      }
+
+      .menu-icon-bar button {
+        border-radius: 0;
+      }
+
+      .app-container {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        flex: 0 0 200px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .menu-icon-bar-sidebar {
+        flex: 0 0 auto;
+      }
+
+      .menu-icon-bar-main {
+        flex: 0 0 auto;
+      }
+
+      .tile-set-container {
+        flex: 1 1 auto;
+        overflow: auto;
+        position: relative;
+      }
+
+      .tile-hover {
+        border: 1px solid gainsboro;
+        box-sizing: border-box;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .tile-selected {
+        border: 1px solid black;
+        box-sizing: border-box;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .slider {
+        flex: 0 0 auto;
+        background-color: gainsboro;
+        width: 1px;
+        position: relative;
+      }
+
+      .slider__drag-area {
+        width: 17px;
+        position: absolute;
+        left: -8px;
+        right: -8px;
+        top: 0;
+        bottom: 0;
+        cursor: col-resize;
+        z-index: 1;
+      }
+
+      .main {
+        flex: 1 1 auto;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .level {
+        position: fixed;
+        right: 1.5rem;
+        bottom: 1.5rem;
+        width: 32px;
+      }
+
+      .tile-map-container {
+        background-color: #f1f1f1;
+        flex: 1 1 auto;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .tile-map {
+        display: block;
+        background-color: white;
+      }
+
+      .tile-map--dragging {
+        cursor: move;
+      }
+
+      .selected-area {
+        border: 1px dashed gainsboro;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      #tileSetSelect:focus {
+        box-shadow: none;
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
   </head>
   <body>
     <nav class="app-navbar navbar navbar-expand-lg bg-body-tertiary">
@@ -424,5 +550,5 @@
       </div>
     </div>
   </body>
-  <script type="module" src="src/renderer.ts"></script>
+  <script type="module" src="main.js"></script>
 </html>

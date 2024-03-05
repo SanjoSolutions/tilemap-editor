@@ -1743,14 +1743,12 @@ async function readReadableStreamAsGzipBlob(
   return new Blob(chunks, { type: "application/gzip" })
 }
 
-window.electronAPI.onUndo(undo)
-window.electronAPI.onCut(cut)
-window.electronAPI.onCopy(copy)
-window.electronAPI.onPaste(startPasting)
-
 window.addEventListener("keydown", function (event) {
   if (!isModalOpen) {
-    if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "c") {
+    if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "z") {
+      event.preventDefault()
+      undo()
+    } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "c") {
       event.preventDefault()
       copy()
     } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "x") {
@@ -1795,6 +1793,12 @@ window.addEventListener("keydown", function (event) {
     } else if (isOnlyCtrlOrCmdModifierKeyPressed(event) && event.key === "s") {
       event.preventDefault()
       saveMap()
+    } else if (
+      isOnlyCtrlOrCmdAndAltModifierKeyPressed(event) &&
+      event.code === "KeyN"
+    ) {
+      event.preventDefault()
+      createNewTileMap()
     } else if (event.code === "Escape") {
       if (isInPasteMode) {
         event.preventDefault()
@@ -2155,6 +2159,24 @@ function determineColumnFromCoordinate(x: number): bigint {
     ) / toBigInt(scaledTileSize.width * 100)
   )
 }
+
+;(
+  document.querySelector("#exportToFile") as HTMLButtonElement
+).addEventListener("click", function (event) {
+  event.preventDefault()
+  saveMap()
+})
+;(
+  document.querySelector("#importFromFile") as HTMLButtonElement
+).addEventListener("click", function (event) {
+  event.preventDefault()
+  loadTileMap()
+})
+
+const $undo = document.querySelector("#undo") as HTMLAnchorElement
+$undo.addEventListener("click", function () {
+  undo()
+})
 
 async function loadTileSet(): Promise<TileSet> {
   return new Promise(async (resolve) => {
