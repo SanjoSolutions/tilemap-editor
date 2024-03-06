@@ -137,6 +137,9 @@ const areaToolButton = menuIconBar.querySelector(
 const fillToolButton = menuIconBar.querySelector(
   ".fill-tool-button",
 ) as HTMLButtonElement
+const placeNPCToolButton = menuIconBar.querySelector(
+  ".place-npc-button",
+) as HTMLButtonElement
 const selectionToolButton = menuIconBar.querySelector(
   ".selection-tool-button",
 ) as HTMLButtonElement
@@ -1008,6 +1011,7 @@ function updateToolButtonStates() {
   updatePenToolButton()
   updateAreaToolButton()
   updateFillToolButton()
+  updatePlaceNPCToolButton()
   updateSelectionToolButton()
 }
 
@@ -1047,6 +1051,16 @@ fillToolButton.addEventListener("click", activateFillTool)
 
 function updateFillToolButton() {
   updateToolButton(fillToolButton, "fill")
+}
+
+function activatePlaceNPCTool() {
+  changeTool(Tool.PlaceNPC)
+}
+
+placeNPCToolButton.addEventListener("click", activatePlaceNPCTool)
+
+function updatePlaceNPCToolButton() {
+  updateToolButton(placeNPCToolButton, "placeNPC")
 }
 
 function activateSelectTool() {
